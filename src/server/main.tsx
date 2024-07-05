@@ -209,10 +209,6 @@ wss.on('connection', async (ws) => {
           return sendError(ws, 'Too many players already')
         }
 
-        if (gameState.status === 'started') {
-          return sendError(ws, 'Game already started')
-        }
-
         const seat = msgJson.seat as keyof GameState
         if (seat !== 'seat1' && seat !== 'seat2' && seat !== 'seat3' && seat !== 'seat4' && seat !== 'seat5') {
           return sendError(ws, 'Invalid seat')
