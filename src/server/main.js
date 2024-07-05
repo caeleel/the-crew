@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = require("ws");
 const redis_1 = require("redis");
-const wss = new ws_1.WebSocketServer({ port: 8080 });
+const wss = new ws_1.WebSocketServer({ port: 8082 });
 const redis = (0, redis_1.createClient)().connect();
 const sockets = {};
 function send(ws, data) {
@@ -27,31 +27,29 @@ function broadcast(channel, data) {
 function seedGen() {
     return (Math.random() * 2 ** 32) >>> 0;
 }
+function getStartingSeats(gameState) {
+    const seats = [];
+    for (const key in gameState) {
+        if (key.substring(0, 4) === 'seat') {
+            if (gameState[key]) {
+                seats.push(key);
+            }
+        }
+    }
+    return seats;
+}
 function filledSeats(gameState) {
-    let count = 0;
-    if (gameState.seat1)
-        count++;
-    if (gameState.seat2)
-        count++;
-    if (gameState.seat3)
-        count++;
-    if (gameState.seat4)
-        count++;
-    if (gameState.seat5)
-        count++;
-    return count;
+    return getStartingSeats(gameState).length;
 }
 function whichSeat(guid, gameState) {
-    if (gameState.seat2.split(':', 2)[0] === guid)
-        return 'seat2';
-    if (gameState.seat3.split(':', 2)[0] === guid)
-        return 'seat3';
-    if (gameState.seat4.split(':', 2)[0] === guid)
-        return 'seat4';
-    if (gameState.seat5.split(':', 2)[0] === guid)
-        return 'seat5';
-    if (gameState.seat1.split(':', 2)[0] === guid)
-        return 'seat1';
+    for (const key in gameState) {
+        if (key.substring(0, 4) === 'seat') {
+            const seatKey = key;
+            if (gameState[seatKey].split(':', 2)[0] === guid) {
+                return seatKey;
+            }
+        }
+    }
     return null;
 }
 wss.on('connection', async (ws) => {
@@ -82,10 +80,18 @@ wss.on('connection', async (ws) => {
             gameState: await getGameState(),
         });
     }
-    ws.on('close', () => {
+    ws.on('close', async () => {
         if (channel) {
             const wsMap = sockets[channel];
             delete wsMap[guid];
+            const gameState = await getGameState();
+            if (gameState) {
+                const seat = whichSeat(guid, gameState);
+                if (seat) {
+                    gameState[seat] = '';
+                    setGameState(gameState);
+                }
+            }
         }
     });
     ws.on('message', async (data) => {
@@ -125,6 +131,7 @@ wss.on('connection', async (ws) => {
                         seat3: '',
                         seat4: '',
                         seat5: '',
+                        startingSeats: '',
                         status: 'waiting'
                     };
                     setGameState(gameState);
@@ -147,9 +154,6 @@ wss.on('connection', async (ws) => {
                 if (filledSeats(gameState) > 4) {
                     return sendError(ws, 'Too many players already');
                 }
-                if (gameState.status === 'started') {
-                    return sendError(ws, 'Game already started');
-                }
                 const seat = msgJson.seat;
                 if (seat !== 'seat1' && seat !== 'seat2' && seat !== 'seat3' && seat !== 'seat4' && seat !== 'seat5') {
                     return sendError(ws, 'Invalid seat');
@@ -169,7 +173,7 @@ wss.on('connection', async (ws) => {
                 if (filledSeats(gameState) < 3) {
                     return sendError(ws, 'Not enough players');
                 }
-                setGameState({ status: 'started' });
+                setGameState({ status: 'started', startingSeats: getStartingSeats(gameState).join(',') });
             }
             case 'leave': {
                 const guid = msgJson.guid;
@@ -180,9 +184,6 @@ wss.on('connection', async (ws) => {
                 const seat = whichSeat(guid, gameState);
                 if (!seat) {
                     return sendError(ws, 'Player is not in the game');
-                }
-                if (gameState.status === 'started') {
-                    return sendError(ws, `Can't leave game in progress`);
                 }
                 setGameState({ [seat]: '' });
             }
@@ -214,6 +215,7 @@ wss.on('connection', async (ws) => {
                     seed2: seedGen(),
                     seed3: seedGen(),
                     seed4: seedGen(),
+                    startingSeats: '',
                     status: 'waiting',
                 });
                 broadcast(channel, {

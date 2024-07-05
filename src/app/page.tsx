@@ -8,7 +8,7 @@ if (!guid) {
   localStorage.setItem('guid', guid)
 }
 
-function connect(callback: (msg: any) => void, name: string, channel?: string) {
+function connect(callback: (msg: any) => void, channel?: string) {
   if (!channel) {
     return
   }
@@ -22,15 +22,13 @@ function connect(callback: (msg: any) => void, name: string, channel?: string) {
   socket.onopen = () => {
     send({
       type: 'subscribe',
-      guid,
-      name,
       channel,
     })
   }
 
   socket.onclose = (e) => {
     setTimeout(() => {
-      connect(callback, name, channel)
+      connect(callback, channel)
     }, 1000)
   }
 
@@ -44,19 +42,13 @@ function connect(callback: (msg: any) => void, name: string, channel?: string) {
 }
 
 export default function Page() {
-  const query = document.location.href.split('?', 2)[1].split('&')
-  const queryMap: { [k: string]: string } = {}
-  for (const item of query) {
-    const [k, v] = item.split('=')
-    queryMap[k] = v
-  }
-  const name = queryMap['n'] || 'Anonymous'
-  const channel = queryMap['c']
+  console.log(document.location.href)
+  const channel = 'hello-world'
 
   useEffect(() => {
-    console.log('connecting...', name, channel)
+    console.log('connecting...')
     connect((msg) => {
       console.log(msg)
-    }, name, channel)
-  }, [name, channel])
+    }, channel)
+  }, [channel])
 }
