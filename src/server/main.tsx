@@ -1,7 +1,7 @@
 import { WebSocket, WebSocketServer } from 'ws'
 import { createClient } from 'redis'
 
-const wss = new WebSocketServer({ port: 8080 })
+const wss = new WebSocketServer({ port: 8082 })
 const redis = createClient().connect()
 
 const sockets: {
