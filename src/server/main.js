@@ -69,7 +69,7 @@ wss.on('connection', async (ws) => {
     async function setGameState(gameState) {
         await client.hSet(gameKey, gameState);
         await client.expire(gameKey, 3600);
-        broadcastGameState();
+        await broadcastGameState();
     }
     async function getMoves() {
         return await client.lRange(moveKey, 0, -1);
@@ -136,11 +136,11 @@ wss.on('connection', async (ws) => {
                     };
                     setGameState(gameState);
                 }
-                await broadcastGameState();
                 send(ws, {
                     type: 'moves',
                     moves: await getMoves(),
                 });
+                await broadcastGameState();
                 break;
             }
             case 'join': {
