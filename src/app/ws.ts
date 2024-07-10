@@ -16,14 +16,16 @@ export function connect(callback: (msg: any) => void, channel?: string) {
     return
   }
 
-  const localSocket = new WebSocket("ws://localhost:8082")
+  const localSocket = new WebSocket('wss://splendorlord.xyz/the-crew')
 
   localSocket.onopen = () => {
-    localSocket.send(JSON.stringify({
-      type: 'subscribe',
-      channel,
-      guid,
-    }))
+    localSocket.send(
+      JSON.stringify({
+        type: 'subscribe',
+        channel,
+        guid,
+      }),
+    )
   }
 
   localSocket.onclose = (e) => {

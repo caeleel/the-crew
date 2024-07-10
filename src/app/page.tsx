@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import { ReactNode, useEffect, useState } from "react"
-import { cards, Hand } from "./cards"
-import { missions, Mission, MissionCard } from "./missions"
-import { Move, parseMove, serializeMove } from "./move"
-import { shuffle, setSeeds } from "./rand"
-import { Provider, useAtom, useAtomValue } from "jotai"
+import { ReactNode, useEffect, useState } from 'react'
+import { Card, cards, CardValue, Hand, Hint, Signal } from './cards'
+import { missions, Mission, MissionCard } from './missions'
+import { Move, parseMove } from './move'
+import { shuffle, setSeeds } from './rand'
+import { Provider, useAtom, useAtomValue } from 'jotai'
 import {
   joined,
   SeatKey,
@@ -13,21 +13,24 @@ import {
   numJoined,
   ServerGameState,
   GameState,
-} from "./game"
-import { setLocalStorage } from "./local-storage"
-import { socket, send, connect, guid } from "./ws"
+  CardWithPosition,
+} from './game'
+import { setLocalStorage } from './local-storage'
+import { socket, send, connect, guid } from './ws'
 import {
   serverStateAtom,
   gameStateAtom,
   nameAtom,
   atomStore,
-  emptyPlayer,
   cloneEmptyPlayer,
-} from "./atoms"
+} from './atoms'
 
 let moves: Move[] = []
 let currentTarget = 12
-const slotDims = "w-96 h-96"
+const slotStyle = {
+  height: '536px',
+  width: '384px',
+}
 
 function Slot({
   highlighted,
@@ -38,7 +41,8 @@ function Slot({
 }) {
   return (
     <div
-      className={`${highlighted ? "border-4 border-emerald-200" : ""} bg-slate-50 rounded-md ${slotDims} flex items-center justify-center`}
+      className={`${highlighted ? 'border-4 border-emerald-200' : 'border-4 border-slate-50'} relative bg-slate-50 rounded-md flex items-center justify-center`}
+      style={slotStyle}
     >
       {children}
     </div>
@@ -49,14 +53,23 @@ function Button({
   children,
   onClick,
   disabled,
+  full,
+  small,
 }: {
   children: ReactNode
   onClick: () => void
   disabled?: boolean
+  full?: boolean
+  small?: boolean
 }) {
+  let sizing = `px-4 py-2`
+  if (small) {
+    sizing = `px-2 py-1 text-xs`
+  }
+
   return (
     <button
-      className={`border-2 ${disabled ? "" : "hover:border-emerald-200"} disabled:bg-slate-50 disabled:cursor-default disabled:text-slate-300 rounded-md px-4 py-2 cursor-pointer w-full`}
+      className={`border border-white bg-white ${disabled ? 'border-slate-200' : 'hover:border-emerald-200'} disabled:bg-slate-50 disabled:cursor-default disabled:text-slate-300 rounded-md ${sizing} cursor-pointer ${full ? 'w-full' : ''}`}
       disabled={disabled}
       onClick={onClick}
     >
@@ -89,7 +102,7 @@ function PreGameSeat({ player }: { player: Player }) {
     <Button
       onClick={() => {
         send({
-          type: "join",
+          type: 'join',
           seat: player.seat,
           name,
         })
@@ -102,24 +115,131 @@ function PreGameSeat({ player }: { player: Player }) {
 
 function PlayingSeat({ player }: { player: Player }) {
   const gameState = useAtomValue(gameStateAtom)
+  const [signaling, setSignaling] = useState(false)
+  const [signal, setSignal] = useState<Hint | null>(null)
+
+  const isMe = player.guid === guid
+  const isActivePlayer =
+    isMe &&
+    gameState.whoseTurn === player.seat &&
+    gameState.missions.length === 0
 
   if (!player.name) {
     return null
   }
 
+  const leadCard = gameState.activeTrick[0]?.card || null
+  let hasSuit = false
+  if (leadCard) {
+    hasSuit = player.hand.some((card) => card[0] === leadCard[0])
+  }
+
+  const signalType = (card: CardValue) => {
+    const suit = card[0]
+
+    let isSmallest = true
+    let isBiggest = true
+    let isOnly = true
+
+    for (const c of player.hand) {
+      if (c === card) continue
+
+      if (c[0] === suit) {
+        isOnly = false
+        if (c > card) {
+          isBiggest = false
+        } else {
+          isSmallest = false
+        }
+      }
+    }
+
+    if (isOnly) return 'only'
+    else if (isBiggest) return 'top'
+    else if (isSmallest) return 'bottom'
+    else return null
+  }
+
+  const canUseCard = (card: CardValue) => {
+    if (signaling) {
+      if (card[0] === 's') return false
+
+      return !!signalType(card)
+    }
+
+    if (!isActivePlayer) {
+      return false
+    }
+
+    if (hasSuit) {
+      return card[0] === leadCard[0]
+    }
+
+    return true
+  }
+
   return (
-    <div className={`${slotDims} p-4 flex flex-col gap-2`}>
-      <div className="font-bold">
-        {player.seat === gameState.captainSeat && "👑"} {player.name}
+    <div className="p-3 flex flex-col gap-4" style={slotStyle}>
+      <div className="flex gap-2">
+        <div className="font-bold">
+          {player.seat === gameState.captainSeat && '👑'} {player.name}
+        </div>
+        <Signal hint={player.hint || signal} />
+        {!player.hint && signal && <div>(pending signal)</div>}
       </div>
-      <Hand hand={player.hand} showBack={player.guid !== guid} showNumber />
-      <div>
+      <div className="flex gap-3">
+        <Hand
+          highlight={canUseCard}
+          hand={player.hand}
+          showBack={!isMe}
+          showNumber
+          onClick={(card) => {
+            if (canUseCard(card)) {
+              if (signaling) {
+                const type = signalType(card)!
+                send({
+                  type: 'move',
+                  move: `h:${card}:${type}`,
+                })
+                setSignal({ card, type, played: false })
+                setSignaling(false)
+              } else {
+                send({
+                  type: 'move',
+                  move: `p:${card}`,
+                })
+              }
+            }
+          }}
+        />
+        {isMe && !player.hint && !signaling && (
+          <div className="h-7">
+            <Button
+              small
+              onClick={() => {
+                setSignaling(true)
+              }}
+            >
+              Signal
+            </Button>
+          </div>
+        )}
+        {isMe && signaling && (
+          <div className="h-7 text-xs leading-6">{'<- Pick 1'}</div>
+        )}
+      </div>
+      <div className="flex gap-2">
         {player.missions.map((mission) => (
           <MissionCard
             key={mission.id}
             mission={mission}
             numPlayers={gameState.numPlayers}
           />
+        ))}
+      </div>
+      <div className="flex gap-6 flex-wrap">
+        {player.tricks.map((trick, i) => (
+          <Hand key={i} hand={trick.map((c) => c.card)} showNumber />
         ))}
       </div>
     </div>
@@ -130,7 +250,7 @@ function Seat({ player }: { player: Player }) {
   const serverState = useAtomValue(serverStateAtom)
   const gameState = useAtomValue(gameStateAtom)
 
-  const started = serverState.status === "started"
+  const started = serverState.status === 'started'
 
   return (
     <Slot highlighted={started && gameState.whoseTurn === player.seat}>
@@ -140,20 +260,19 @@ function Seat({ player }: { player: Player }) {
   )
 }
 
-function MissionPicker() {
-  const gameState = useAtomValue(gameStateAtom)
-  const serverState = useAtomValue(serverStateAtom)
-
-  if (!gameState.missions.length) {
-    return null
-  }
-
-  const isActivePlayer = serverState[gameState.whoseTurn].split(":")[0] === guid
+function MissionPicker({
+  gameState,
+  serverState,
+}: {
+  gameState: GameState
+  serverState: ServerGameState
+}) {
+  const isActivePlayer = serverState[gameState.whoseTurn].split(':')[0] === guid
   const me = gameState.players.find((p) => p.guid === guid)
   const passesRemaining = me?.passesRemaining || 0
 
   return (
-    <div className="flex flex-col justify-center gap-4">
+    <div className="flex flex-col justify-center gap-4 w-full">
       <div className="flex gap-4 flex-wrap p-2 justify-center">
         {gameState.missions.map((mission) => (
           <div
@@ -161,7 +280,7 @@ function MissionPicker() {
             onClick={() => {
               if (isActivePlayer) {
                 send({
-                  type: "move",
+                  type: 'move',
                   move: `d:${mission.id}`,
                 })
               }
@@ -177,11 +296,12 @@ function MissionPicker() {
       </div>
       <div className="px-5">
         <Button
+          full
           disabled={passesRemaining === 0 || !isActivePlayer}
           onClick={() => {
             send({
-              type: "move",
-              move: "d:pass",
+              type: 'move',
+              move: 'd:pass',
             })
           }}
         >
@@ -192,28 +312,78 @@ function MissionPicker() {
   )
 }
 
+function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
+  const positionMap = {
+    seat1: 'left-2 top-0 bottom-0 mt-auto mb-auto',
+    seat2: 'right-2 top-0 bottom-0 mt-auto mb-auto',
+    seat3: 'right-2 bottom-2',
+    seat4: 'bottom-2 left-0 right-0 ml-auto mr-auto',
+    seat5: 'left-2 bottom-2',
+  }
+
+  return (
+    <>
+      {trick.map((card) => (
+        <div
+          key={card.card}
+          className={`absolute w-4 h-8 ${positionMap[card.position]}`}
+        >
+          <Card card={card.card} showNumber />
+        </div>
+      ))}
+      <Button
+        onClick={() => {
+          if (confirm('Are you sure you want to end the game?')) {
+            send({
+              type: 'reset',
+            })
+          }
+        }}
+      >
+        Next game
+      </Button>
+    </>
+  )
+}
+
 function Table() {
   const [name, setName] = useAtom(nameAtom)
   const serverState = useAtomValue(serverStateAtom)
+  const gameState = useAtomValue(gameStateAtom)
+  const [pts, setPts] = useState(currentTarget)
 
-  if (serverState.status === "started" || !guid) {
-    return <MissionPicker />
+  if (!guid) {
+    return null
+  }
+
+  if (serverState.status === 'started') {
+    if (gameState.missions.length) {
+      return <MissionPicker gameState={gameState} serverState={serverState} />
+    }
+
+    return <ActiveTrick trick={gameState.activeTrick} />
   }
 
   if (joined(guid, serverState)) {
     if (numJoined(serverState) >= 3) {
       return (
-        <div className="p-8">
+        <div className="flex flex-col gap-2">
           <Button
             onClick={() => {
               send({
-                type: "start",
-                meta: { target: currentTarget },
+                type: 'start',
+                meta: { target: pts },
               })
             }}
           >
-            Start game
+            {`Start game (${pts} pts)`}
           </Button>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => setPts(pts + 1)}>⬆️</Button>
+            <Button disabled={pts < 11} onClick={() => setPts(pts - 1)}>
+              ⬇️
+            </Button>
+          </div>
         </div>
       )
     }
@@ -229,10 +399,14 @@ function Table() {
       onChange={(e) => {
         const newName = e.target.value
         setName(newName)
-        setLocalStorage("name", newName)
+        setLocalStorage('name', newName)
       }}
     />
   )
+}
+
+function seatToIdx(seat: SeatKey): number {
+  return Number(seat[4]) - 1
 }
 
 function allocateMissions(missions: Mission[], players: number) {
@@ -253,35 +427,59 @@ function allocateMissions(missions: Mission[], players: number) {
   return chosen
 }
 
+let onNextTrick: Move[] = []
+
+function flushMoveQueue(gameState: GameState, serverState: ServerGameState) {
+  for (const move of onNextTrick) {
+    applyMove(move, gameState, serverState)
+  }
+  onNextTrick = []
+}
+
+function findWinner(trick: CardWithPosition[]): CardWithPosition {
+  const lead = trick[0]
+  let toSort = trick.filter((c) => c.card[0] === 's')
+  if (toSort.length === 0) {
+    toSort = trick.filter((c) => c.card[0] === lead.card[0])
+  }
+
+  toSort.sort((a, b) => (a.card < b.card ? 1 : -1))
+  return toSort[0]
+}
+
 function applyMove(
   move: Move,
   gameState: GameState,
   serverState: ServerGameState,
 ) {
-  if (serverState.status !== "started") {
+  if (serverState.status !== 'started') {
     return
   }
 
   const activePlayer = gameState.players[gameState.turnIdx]
   const seatIdx = serverState.startingSeats.indexOf(gameState.whoseTurn)
   if (seatIdx < 0) {
-    throw new Error("Could not find active seat in seating chart")
+    throw new Error('Could not find active seat in seating chart')
   }
   const nextSeatIdx = (seatIdx + 1) % gameState.numPlayers
   const nextSeat = serverState.startingSeats[nextSeatIdx]
-  const nextIdx = gameState.players.findIndex((p) => p.seat === nextSeat)
 
   function rotatePlayer() {
     gameState.whoseTurn = nextSeat
-    gameState.turnIdx = nextIdx
+    gameState.turnIdx = seatToIdx(nextSeat)
   }
 
   if (gameState.missions.length) {
-    if (move.type !== "draft") {
+    if (move.type === 'hint') {
+      onNextTrick.push(move)
       return
     }
 
-    if (move.id === "pass") {
+    if (move.type !== 'draft') {
+      return
+    }
+
+    if (move.id === 'pass') {
       activePlayer.passesRemaining--
       rotatePlayer()
       return
@@ -292,9 +490,60 @@ function applyMove(
       return
     }
 
-    rotatePlayer()
     const mission = gameState.missions.splice(missionIdx, 1)[0]
     activePlayer.missions.push(mission)
+    if (gameState.missions.length) {
+      rotatePlayer()
+    } else {
+      gameState.whoseTurn = gameState.captainSeat
+      gameState.turnIdx = seatToIdx(gameState.captainSeat)
+      flushMoveQueue(gameState, serverState)
+    }
+    return
+  }
+
+  if (move.type === 'hint') {
+    if (gameState.activeTrick.length) {
+      onNextTrick.push(move)
+      return
+    }
+
+    const hintGuid = move.guid
+    const player = gameState.players.find((p) => p.guid === hintGuid)
+    if (!player) {
+      return
+    }
+
+    if (!player.hand.includes(move.hint.card)) {
+      return
+    }
+
+    player.hint = move.hint
+    return
+  }
+
+  if (move.type === 'play') {
+    gameState.activeTrick.push({
+      card: move.card,
+      position: activePlayer.seat,
+    })
+    activePlayer.hand.splice(activePlayer.hand.indexOf(move.card), 1)
+    if (activePlayer.hint?.card === move.card) {
+      activePlayer.hint.played = true
+    }
+
+    if (gameState.activeTrick.length === gameState.numPlayers) {
+      const winnerCard = findWinner(gameState.activeTrick)
+      const winnerIdx = seatToIdx(winnerCard.position)
+      const winner = gameState.players[winnerIdx]
+      winner.tricks.push(gameState.activeTrick)
+      gameState.activeTrick = []
+      gameState.turnIdx = winnerIdx
+      gameState.whoseTurn = winner.seat
+      flushMoveQueue(gameState, serverState)
+    } else {
+      rotatePlayer()
+    }
     return
   }
 }
@@ -317,20 +566,22 @@ function initializeGameState(gameState: GameState) {
   gameState.numPlayers = activeSeats.length
 
   let cardIdx = 0
+  let captainFound = false
   for (let i = 1; i <= 5; i++) {
     const seat = `seat${i}` as SeatKey
-    const [currGuid, name] = serverState[seat].split(":", 2)
+    const [currGuid, name] = serverState[seat].split(':', 2)
 
     let endIdx = cardIdx + totalTricks
     const player: Player = {
       ...cloneEmptyPlayer(seat),
-      name: name || "",
+      name: name || '',
       idx: i,
       guid: currGuid,
       hand: currGuid ? shuffledCards.slice(cardIdx, endIdx) : [],
     }
 
-    if (player.hand.includes("s4")) {
+    if (player.hand.includes('s4')) {
+      captainFound = true
       gameState.captainSeat = seat
       gameState.whoseTurn = seat
       gameState.turnIdx = i - 1
@@ -349,13 +600,22 @@ function initializeGameState(gameState: GameState) {
     players.push(player)
   }
 
-  console.log("game-state", gameState)
+  if (!captainFound) {
+    gameState.captainSeat = serverState.startingSeats[0]
+    gameState.whoseTurn = gameState.captainSeat
+    gameState.turnIdx = seatToIdx(gameState.captainSeat)
+    const captain = gameState.players[gameState.turnIdx]
+    captain.hand.push('s4')
+    console.log('appointed captain', captain)
+  }
+
+  console.log('game-state', gameState)
 }
 
 function handleMsg(msg: any) {
   console.log(`Received msg type: ${msg.type}`)
   switch (msg.type) {
-    case "game": {
+    case 'game': {
       const rawState = msg.gameState
       const {
         seed1,
@@ -370,11 +630,11 @@ function handleMsg(msg: any) {
         seat5,
       } = rawState
       const startingSeats =
-        rawState.startingSeats === "" ? [] : rawState.startingSeats.split(",")
+        rawState.startingSeats === '' ? [] : rawState.startingSeats.split(',')
 
       const serverState = atomStore.get(serverStateAtom)
       const needsInitialize =
-        status === "started" && serverState.status === "waiting"
+        status === 'started' && serverState.status === 'waiting'
       const newServerState: ServerGameState = {
         seed1: Number(seed1),
         seed2: Number(seed2),
@@ -394,7 +654,7 @@ function handleMsg(msg: any) {
       const gameState = { ...atomStore.get(gameStateAtom) }
       for (let i = 0; i < 5; i++) {
         const seatKey = `seat${i + 1}` as SeatKey
-        const name = newServerState[seatKey].split(":")[1] || ""
+        const name = newServerState[seatKey].split(':')[1] || ''
         gameState.players[i].name = name
       }
 
@@ -408,11 +668,11 @@ function handleMsg(msg: any) {
       atomStore.set(gameStateAtom, gameState)
       break
     }
-    case "moves": {
+    case 'moves': {
       moves = msg.moves.map((msg: string) => parseMove(msg))
       break
     }
-    case "move": {
+    case 'move': {
       const parsed = parseMove(`${msg.guid}:${msg.move}`)
       if (parsed) {
         moves.push(parsed)
@@ -424,9 +684,9 @@ function handleMsg(msg: any) {
   }
 }
 
-if (typeof window !== "undefined") {
-  const channel = document.location.href.split("#", 2)[1]
-  console.log("connecting...")
+if (typeof window !== 'undefined') {
+  const channel = document.location.href.split('#', 2)[1]
+  console.log('connecting...')
   connect((msg) => {
     handleMsg(msg)
   }, channel)

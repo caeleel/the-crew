@@ -43,7 +43,8 @@ export function parseMove(move: string): Move | null {
         hint: {
           card: parts[2] as CardValue,
           type: parts[3] as 'top' | 'only' | 'bottom',
-        }
+          played: false,
+        },
       }
     case 'e':
       return {
@@ -59,18 +60,5 @@ export function parseMove(move: string): Move | null {
       }
     default:
       return null
-  }
-}
-
-export function serializeMove(move: Move): string {
-  switch (move.type) {
-    case 'play':
-      return `p:${move.card}`
-    case 'hint':
-      return `h:${move.hint.card}:${move.hint.type}`
-    case 'emote':
-      return `e:${move.emote}`
-    case 'draft':
-      return `d:${move.id}`
   }
 }

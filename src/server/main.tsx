@@ -1,5 +1,5 @@
-import { WebSocket, WebSocketServer } from "ws"
-import { createClient } from "redis"
+import { WebSocket, WebSocketServer } from 'ws'
+import { createClient } from 'redis'
 
 const wss = new WebSocketServer({ port: 8082 })
 const redis = createClient().connect()
@@ -25,11 +25,11 @@ type GameState = {
   seat5: string
   meta: string
   startingSeats: string
-  status: "started" | "waiting"
+  status: 'started' | 'waiting'
 }
 
 type SubscribeMsg = {
-  type: "subscribe"
+  type: 'subscribe'
   channel: string
   guid: string
 }
@@ -40,7 +40,7 @@ function send(ws: WebSocket, data: any) {
 
 function sendError(ws: WebSocket, error: string) {
   send(ws, {
-    type: "error",
+    type: 'error',
     error,
   })
 }
@@ -64,7 +64,7 @@ function seedGen() {
 function getStartingSeats(gameState: GameState) {
   const seats = []
   for (const key in gameState) {
-    if (key.substring(0, 4) === "seat") {
+    if (key.substring(0, 4) === 'seat') {
       if (gameState[key as keyof GameState]) {
         seats.push(key)
       }
@@ -80,9 +80,9 @@ function filledSeats(gameState: GameState) {
 
 function whichSeat(guid: string, gameState: GameState): keyof GameState | null {
   for (const key in gameState) {
-    if (key.substring(0, 4) === "seat") {
+    if (key.substring(0, 4) === 'seat') {
       const seatKey = key as keyof GameState
-      if ((gameState[seatKey] as string).split(":", 2)[0] === guid) {
+      if ((gameState[seatKey] as string).split(':', 2)[0] === guid) {
         return seatKey
       }
     }
@@ -90,12 +90,12 @@ function whichSeat(guid: string, gameState: GameState): keyof GameState | null {
   return null
 }
 
-wss.on("connection", async (ws) => {
+wss.on('connection', async (ws) => {
   let channel: string | null = null
-  let guid = ""
-  let name = ""
-  let gameKey = ""
-  let moveKey = ""
+  let guid = ''
+  let name = ''
+  let gameKey = ''
+  let moveKey = ''
 
   const client = await redis
 
@@ -109,7 +109,7 @@ wss.on("connection", async (ws) => {
 
   async function setGameState(gameState: Partial<GameState>) {
     await client.hSet(gameKey, gameState)
-    await client.expire(gameKey, 3600)
+    await client.expire(gameKey, 86400)
 
     await broadcastGameState()
   }
@@ -120,19 +120,19 @@ wss.on("connection", async (ws) => {
 
   async function broadcastGameState() {
     broadcast(channel!, {
-      type: "game",
+      type: 'game',
       gameState: await getGameState(),
     })
   }
 
-  ws.on("close", async () => {
+  ws.on('close', async () => {
     if (channel) {
       const wsMap = sockets[channel]
       delete wsMap[guid]
     }
   })
 
-  ws.on("message", async (data) => {
+  ws.on('message', async (data) => {
     let msgJson
 
     try {
@@ -141,15 +141,15 @@ wss.on("connection", async (ws) => {
       return sendError(ws, (e as Error).message)
     }
 
-    if (!channel && msgJson.type !== "subscribe") {
-      return sendError(ws, "Must join channel first")
+    if (!channel && msgJson.type !== 'subscribe') {
+      return sendError(ws, 'Must join channel first')
     }
 
     switch (msgJson.type) {
-      case "subscribe": {
+      case 'subscribe': {
         const subscribeMsg = msgJson as SubscribeMsg
         if (!subscribeMsg.channel || !subscribeMsg.channel) {
-          return sendError(ws, "Subscribe is missing channel")
+          return sendError(ws, 'Subscribe is missing channel')
         }
 
         channel = subscribeMsg.channel
@@ -170,115 +170,116 @@ wss.on("connection", async (ws) => {
             seed2: seedGen(),
             seed3: seedGen(),
             seed4: seedGen(),
-            seat1: "",
-            seat2: "",
-            seat3: "",
-            seat4: "",
-            seat5: "",
-            meta: "",
-            startingSeats: "",
-            status: "waiting",
+            seat1: '',
+            seat2: '',
+            seat3: '',
+            seat4: '',
+            seat5: '',
+            meta: '',
+            startingSeats: '',
+            status: 'waiting',
           }
 
           setGameState(gameState)
         }
 
         send(ws, {
-          type: "moves",
+          type: 'moves',
           moves: await getMoves(),
         })
         await broadcastGameState()
         break
       }
-      case "join": {
+      case 'join': {
         const gameState = await getGameState()
         if (!gameState) {
-          return sendError(ws, "Cannot join game, game does not exist")
+          return sendError(ws, 'Cannot join game, game does not exist')
         }
 
         if (whichSeat(guid, gameState)) {
-          return sendError(ws, "Already joined")
+          return sendError(ws, 'Already joined')
         }
 
         if (filledSeats(gameState) > 4) {
-          return sendError(ws, "Too many players already")
+          return sendError(ws, 'Too many players already')
         }
 
         const seat = msgJson.seat as keyof GameState
-        name = msgJson.name || "Anonymous"
+        name = msgJson.name || 'Anonymous'
         if (
-          seat !== "seat1" &&
-          seat !== "seat2" &&
-          seat !== "seat3" &&
-          seat !== "seat4" &&
-          seat !== "seat5"
+          seat !== 'seat1' &&
+          seat !== 'seat2' &&
+          seat !== 'seat3' &&
+          seat !== 'seat4' &&
+          seat !== 'seat5'
         ) {
-          return sendError(ws, "Invalid seat")
+          return sendError(ws, 'Invalid seat')
         }
 
         gameState[seat] = `${guid}:${name}`
         setGameState(gameState)
         break
       }
-      case "start": {
+      case 'start': {
         const gameState = await getGameState()
         if (!gameState) {
-          return sendError(ws, "Cannot start game, game does not exist")
+          return sendError(ws, 'Cannot start game, game does not exist')
         }
 
-        if (gameState.status === "started") {
-          return sendError(ws, "Game already started")
+        if (gameState.status === 'started') {
+          return sendError(ws, 'Game already started')
         }
 
         if (filledSeats(gameState) < 3) {
-          return sendError(ws, "Not enough players")
+          return sendError(ws, 'Not enough players')
         }
 
         setGameState({
-          status: "started",
-          meta: msgJson.meta ? JSON.stringify(msgJson.meta) : "",
-          startingSeats: getStartingSeats(gameState).join(","),
+          status: 'started',
+          meta: msgJson.meta ? JSON.stringify(msgJson.meta) : '',
+          startingSeats: getStartingSeats(gameState).join(','),
         })
       }
-      case "leave": {
+      case 'leave': {
         const guid = msgJson.guid
         const gameState = await getGameState()
         if (!gameState) {
-          return sendError(ws, "Game does not exist")
+          return sendError(ws, 'Game does not exist')
         }
 
         const seat = whichSeat(guid, gameState)
 
         if (!seat) {
-          return sendError(ws, "Player is not in the game")
+          return sendError(ws, 'Player is not in the game')
         }
 
-        setGameState({ [seat]: "" })
+        setGameState({ [seat]: '' })
       }
-      case "move": {
+      case 'move': {
         const gameState = await getGameState()
         if (!gameState) {
-          return sendError(ws, "Game does not exist")
+          return sendError(ws, 'Game does not exist')
         }
 
-        if (gameState.status === "waiting") {
-          return sendError(ws, "Game not started")
+        if (gameState.status === 'waiting') {
+          return sendError(ws, 'Game not started')
         }
 
         const move = msgJson.move
-        await client.lPush(moveKey, `${guid}:${move}`)
-        client.expire(moveKey, 3600)
+        await client.rPush(moveKey, `${guid}:${move}`)
+        client.expire(moveKey, 86400)
+        client.expire(gameKey, 86400)
         broadcast(channel!, {
-          type: "move",
+          type: 'move',
           move,
           guid,
         })
         break
       }
-      case "reset": {
+      case 'reset': {
         const gameState = await getGameState()
         if (!gameState) {
-          return sendError(ws, "Game does not exist")
+          return sendError(ws, 'Game does not exist')
         }
 
         await client.del(moveKey)
@@ -287,11 +288,11 @@ wss.on("connection", async (ws) => {
           seed2: seedGen(),
           seed3: seedGen(),
           seed4: seedGen(),
-          startingSeats: "",
-          status: "waiting",
+          startingSeats: '',
+          status: 'waiting',
         })
         broadcast(channel!, {
-          type: "moves",
+          type: 'moves',
           moves: await getMoves(),
         })
         break
@@ -299,5 +300,5 @@ wss.on("connection", async (ws) => {
     }
   })
 
-  send(ws, { type: "connected" })
+  send(ws, { type: 'connected' })
 })

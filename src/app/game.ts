@@ -1,7 +1,14 @@
-import { CardValue, Hint, Trick } from "./cards"
-import { Mission } from "./missions"
+import { CardValue, Hint } from './cards'
+import { Mission } from './missions'
 
-export type SeatKey = "seat1" | "seat2" | "seat3" | "seat4" | "seat5"
+export type SeatKey = 'seat1' | 'seat2' | 'seat3' | 'seat4' | 'seat5'
+
+export interface CardWithPosition {
+  card: CardValue
+  position: SeatKey
+}
+
+type Trick = CardWithPosition[]
 
 export interface Player {
   name: string
@@ -9,7 +16,7 @@ export interface Player {
   missions: Mission[]
   hint: Hint | null
   passesRemaining: number
-  tricks: (Trick | null)[]
+  tricks: Trick[]
   idx: number
   seat: SeatKey
   guid: string
@@ -17,7 +24,7 @@ export interface Player {
 
 export interface GameState {
   players: Player[]
-  activeTrick: CardValue[]
+  activeTrick: Trick
   captainSeat: SeatKey
   totalTricks: number
   missions: Mission[]
@@ -40,11 +47,11 @@ export interface ServerGameState {
     target: number
   }
   startingSeats: SeatKey[]
-  status: "started" | "waiting"
+  status: 'started' | 'waiting'
 }
 
 function allGuids(serverState: ServerGameState): string[] {
-  const firstPart = (x: string) => x.split(":")[0]
+  const firstPart = (x: string) => x.split(':')[0]
 
   const { seat1, seat2, seat3, seat4, seat5 } = serverState
   return [seat1, seat2, seat3, seat4, seat5].map(firstPart).filter((x) => !!x)
