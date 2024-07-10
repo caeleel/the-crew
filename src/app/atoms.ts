@@ -1,5 +1,5 @@
 import { atom, createStore } from "jotai"
-import { GameState, Player, ServerGameState } from "./game"
+import { GameState, Player, SeatKey, ServerGameState } from "./game"
 import { getLocalStorage } from "./local-storage"
 
 export const emptyPlayer: Player = {
@@ -9,8 +9,13 @@ export const emptyPlayer: Player = {
   hint: null,
   tricks: [],
   idx: 0,
+  passesRemaining: 2,
   guid: "",
   seat: "seat1",
+}
+
+export function cloneEmptyPlayer(seat: SeatKey) {
+  return { ...emptyPlayer, seat, hand: [], missions: [], tricks: [] }
 }
 
 export const atomStore = createStore()
@@ -32,31 +37,18 @@ export const serverStateAtom = atom<ServerGameState>({
 })
 export const gameStateAtom = atom<GameState>({
   players: [
-    {
-      ...emptyPlayer,
-    },
-    {
-      ...emptyPlayer,
-      seat: "seat2",
-    },
-    {
-      ...emptyPlayer,
-      seat: "seat3",
-    },
-    {
-      ...emptyPlayer,
-      seat: "seat4",
-    },
-    {
-      ...emptyPlayer,
-      seat: "seat5",
-    },
+    cloneEmptyPlayer("seat1"),
+    cloneEmptyPlayer("seat2"),
+    cloneEmptyPlayer("seat3"),
+    cloneEmptyPlayer("seat4"),
+    cloneEmptyPlayer("seat5"),
   ],
   activeTrick: [],
   numPlayers: 0,
   captainSeat: "seat1",
   missions: [],
   whoseTurn: "seat1",
+  turnIdx: 0,
   totalTricks: 0,
 })
 

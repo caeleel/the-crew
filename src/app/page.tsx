@@ -6,7 +6,14 @@ import { missions, Mission, MissionCard } from "./missions"
 import { Move, parseMove, serializeMove } from "./move"
 import { shuffle, setSeeds } from "./rand"
 import { Provider, useAtom, useAtomValue } from "jotai"
-import { joined, SeatKey, Player, numJoined, ServerGameState } from "./game"
+import {
+  joined,
+  SeatKey,
+  Player,
+  numJoined,
+  ServerGameState,
+  GameState,
+} from "./game"
 import { setLocalStorage } from "./local-storage"
 import { socket, send, connect, guid } from "./ws"
 import {
@@ -15,11 +22,12 @@ import {
   nameAtom,
   atomStore,
   emptyPlayer,
+  cloneEmptyPlayer,
 } from "./atoms"
 
 let moves: Move[] = []
 let currentTarget = 12
-const slotDims = "w-80 h-96"
+const slotDims = "w-96 h-96"
 
 function Slot({
   highlighted,
@@ -30,7 +38,7 @@ function Slot({
 }) {
   return (
     <div
-      className={`${highlighted ? "border-4 border-emerald-200" : "border"} rounded-md ${slotDims} flex items-center justify-center`}
+      className={`${highlighted ? "border-4 border-emerald-200" : ""} bg-slate-50 rounded-md ${slotDims} flex items-center justify-center`}
     >
       {children}
     </div>
@@ -40,17 +48,20 @@ function Slot({
 function Button({
   children,
   onClick,
+  disabled,
 }: {
   children: ReactNode
   onClick: () => void
+  disabled?: boolean
 }) {
   return (
-    <div
-      className="border rounded-md px-4 py-2 cursor-pointer"
+    <button
+      className={`border-2 ${disabled ? "" : "hover:border-emerald-200"} disabled:bg-slate-50 disabled:cursor-default disabled:text-slate-300 rounded-md px-4 py-2 cursor-pointer w-full`}
+      disabled={disabled}
       onClick={onClick}
     >
       {children}
-    </div>
+    </button>
   )
 }
 
@@ -98,10 +109,19 @@ function PlayingSeat({ player }: { player: Player }) {
 
   return (
     <div className={`${slotDims} p-4 flex flex-col gap-2`}>
-      <div>
+      <div className="font-bold">
         {player.seat === gameState.captainSeat && "👑"} {player.name}
       </div>
       <Hand hand={player.hand} showBack={player.guid !== guid} showNumber />
+      <div>
+        {player.missions.map((mission) => (
+          <MissionCard
+            key={mission.id}
+            mission={mission}
+            numPlayers={gameState.numPlayers}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -129,18 +149,45 @@ function MissionPicker() {
   }
 
   const isActivePlayer = serverState[gameState.whoseTurn].split(":")[0] === guid
+  const me = gameState.players.find((p) => p.guid === guid)
+  const passesRemaining = me?.passesRemaining || 0
 
   return (
-    <div className="flex w-72 gap-4 flex-wrap p-2 justify-center">
-      {gameState.missions.map((mission) => (
-        <MissionCard
-          key={mission.id}
-          mission={mission}
-          isActivePlayer={isActivePlayer}
-          numPlayers={gameState.numPlayers}
-        />
-      ))}
-      {isActivePlayer && <Button onClick={() => {}}>Pass</Button>}
+    <div className="flex flex-col justify-center gap-4">
+      <div className="flex gap-4 flex-wrap p-2 justify-center">
+        {gameState.missions.map((mission) => (
+          <div
+            key={mission.id}
+            onClick={() => {
+              if (isActivePlayer) {
+                send({
+                  type: "move",
+                  move: `d:${mission.id}`,
+                })
+              }
+            }}
+          >
+            <MissionCard
+              mission={mission}
+              isActivePlayer={isActivePlayer}
+              numPlayers={gameState.numPlayers}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="px-5">
+        <Button
+          disabled={passesRemaining === 0 || !isActivePlayer}
+          onClick={() => {
+            send({
+              type: "move",
+              move: "d:pass",
+            })
+          }}
+        >
+          Pass ({passesRemaining} remaining)
+        </Button>
+      </div>
     </div>
   )
 }
@@ -156,16 +203,18 @@ function Table() {
   if (joined(guid, serverState)) {
     if (numJoined(serverState) >= 3) {
       return (
-        <Button
-          onClick={() => {
-            send({
-              type: "start",
-              meta: { target: currentTarget },
-            })
-          }}
-        >
-          Start game
-        </Button>
+        <div className="p-8">
+          <Button
+            onClick={() => {
+              send({
+                type: "start",
+                meta: { target: currentTarget },
+              })
+            }}
+          >
+            Start game
+          </Button>
+        </div>
       )
     }
 
@@ -204,9 +253,53 @@ function allocateMissions(missions: Mission[], players: number) {
   return chosen
 }
 
-function applyMove(move: Move) {}
+function applyMove(
+  move: Move,
+  gameState: GameState,
+  serverState: ServerGameState,
+) {
+  if (serverState.status !== "started") {
+    return
+  }
 
-function initializeGameState() {
+  const activePlayer = gameState.players[gameState.turnIdx]
+  const seatIdx = serverState.startingSeats.indexOf(gameState.whoseTurn)
+  if (seatIdx < 0) {
+    throw new Error("Could not find active seat in seating chart")
+  }
+  const nextSeatIdx = (seatIdx + 1) % gameState.numPlayers
+  const nextSeat = serverState.startingSeats[nextSeatIdx]
+  const nextIdx = gameState.players.findIndex((p) => p.seat === nextSeat)
+
+  function rotatePlayer() {
+    gameState.whoseTurn = nextSeat
+    gameState.turnIdx = nextIdx
+  }
+
+  if (gameState.missions.length) {
+    if (move.type !== "draft") {
+      return
+    }
+
+    if (move.id === "pass") {
+      activePlayer.passesRemaining--
+      rotatePlayer()
+      return
+    }
+
+    const missionIdx = gameState.missions.findIndex((m) => m.id === move.id)
+    if (missionIdx < 0) {
+      return
+    }
+
+    rotatePlayer()
+    const mission = gameState.missions.splice(missionIdx, 1)[0]
+    activePlayer.missions.push(mission)
+    return
+  }
+}
+
+function initializeGameState(gameState: GameState) {
   const serverState = atomStore.get(serverStateAtom)
   const { seed1, seed2, seed3, seed4 } = serverState
   setSeeds(seed1, seed2, seed3, seed4)
@@ -218,7 +311,6 @@ function initializeGameState() {
   const totalTricks = Math.floor(cards.length / activeSeats.length)
   const players: Player[] = []
 
-  const gameState = { ...atomStore.get(gameStateAtom) }
   gameState.totalTricks = totalTricks
   gameState.missions = allocateMissions(shuffledMissions, activeSeats.length)
   gameState.players = players
@@ -231,10 +323,9 @@ function initializeGameState() {
 
     let endIdx = cardIdx + totalTricks
     const player: Player = {
-      ...emptyPlayer,
+      ...cloneEmptyPlayer(seat),
       name: name || "",
       idx: i,
-      seat,
       guid: currGuid,
       hand: currGuid ? shuffledCards.slice(cardIdx, endIdx) : [],
     }
@@ -242,6 +333,7 @@ function initializeGameState() {
     if (player.hand.includes("s4")) {
       gameState.captainSeat = seat
       gameState.whoseTurn = seat
+      gameState.turnIdx = i - 1
 
       if (activeSeats.length === 3) {
         player.hand.push(shuffledCards[endIdx])
@@ -258,8 +350,6 @@ function initializeGameState() {
   }
 
   console.log("game-state", gameState)
-
-  atomStore.set(gameStateAtom, gameState)
 }
 
 function handleMsg(msg: any) {
@@ -307,11 +397,15 @@ function handleMsg(msg: any) {
         const name = newServerState[seatKey].split(":")[1] || ""
         gameState.players[i].name = name
       }
-      atomStore.set(gameStateAtom, gameState)
 
       if (needsInitialize) {
-        initializeGameState()
+        initializeGameState(gameState)
+        for (const move of moves) {
+          applyMove(move, gameState, newServerState)
+        }
       }
+
+      atomStore.set(gameStateAtom, gameState)
       break
     }
     case "moves": {
@@ -322,6 +416,9 @@ function handleMsg(msg: any) {
       const parsed = parseMove(`${msg.guid}:${msg.move}`)
       if (parsed) {
         moves.push(parsed)
+        const gameState = { ...atomStore.get(gameStateAtom) }
+        applyMove(parsed, gameState, atomStore.get(serverStateAtom))
+        atomStore.set(gameStateAtom, gameState)
       }
     }
   }
@@ -339,7 +436,7 @@ function PageInner() {
   const gameState = useAtomValue(gameStateAtom)
 
   return (
-    <div className="flex items-center justify-center w-screen h-screen">
+    <div className="flex items-center justify-center w-screen py-8">
       <div className="flex flex-col gap-4">
         <div className="flex gap-4">
           <Seat player={gameState.players[0]} />

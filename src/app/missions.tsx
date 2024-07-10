@@ -350,10 +350,15 @@ function MissionInner({
         <MissionMessage
           text={`I will win ${mission.winSuit[0].exact ? "exactly" : "at least"}`}
         />
-        <Hand
-          hand={mission.winSuit.map((win) => `${win.suit}1` as CardValue)}
-          multiplier={mission.winSuit[0].count}
-        />
+        <div className="flex gap-4">
+          {mission.winSuit.map((win) => (
+            <Card
+              key={win.suit}
+              card={`${win.suit}1` as CardValue}
+              multiplier={win.count}
+            />
+          ))}
+        </div>
       </>
     )
   }
@@ -533,6 +538,23 @@ function MissionInner({
       </>
     )
   }
+  if (mission.lastNTricks) {
+    if (mission.lastNTricks === 1) {
+      return <MissionMessage text={"I will win the last trick"} />
+    }
+    return (
+      <MissionMessage
+        text={`I will win the last ${mission.lastNTricks} tricks`}
+      />
+    )
+  }
+  if (mission.xIsPublic !== undefined) {
+    return (
+      <MissionMessage
+        text={`I will win exactly X tricks (${mission.xIsPublic ? "public" : "secret"})`}
+      />
+    )
+  }
 
   return null
 }
@@ -548,12 +570,22 @@ export function MissionCard({
 }) {
   return (
     <div
-      className={`${isActivePlayer ? "hover:border-emerald-200" : ""} border-2 rounded-md border-white w-20 p-2 bg-sky-200 flex flex-col relative justify-center drop-shadow-md`}
-      style={{ fontSize: "10px" }}
+      className={`${isActivePlayer ? "hover:border-emerald-200" : ""} border-2 rounded-md border-white h-32 p-2 bg-sky-200 flex flex-col relative justify-center drop-shadow-md`}
+      style={{ fontSize: "10px", width: "104px" }}
     >
-      <div className="flex flex-col items-center gap-1 font-medium select-none">
+      <div className="flex flex-col items-center gap-2 font-bold select-none">
         <MissionInner mission={mission} numPlayers={numPlayers} />
       </div>
+    </div>
+  )
+}
+
+export function MissionDebugger() {
+  return (
+    <div className="flex w-screen h-screen gap-4 flex-wrap">
+      {missions.map((mission) => (
+        <MissionCard key={mission.id} mission={mission} numPlayers={3} />
+      ))}
     </div>
   )
 }

@@ -8,6 +8,7 @@ export interface Player {
   hand: CardValue[]
   missions: Mission[]
   hint: Hint | null
+  passesRemaining: number
   tricks: (Trick | null)[]
   idx: number
   seat: SeatKey
@@ -22,6 +23,7 @@ export interface GameState {
   missions: Mission[]
   numPlayers: number
   whoseTurn: SeatKey
+  turnIdx: number
 }
 
 export interface ServerGameState {
@@ -37,7 +39,7 @@ export interface ServerGameState {
   meta: {
     target: number
   }
-  startingSeats: string[]
+  startingSeats: SeatKey[]
   status: "started" | "waiting"
 }
 
