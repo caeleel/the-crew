@@ -84,8 +84,22 @@ function PreGameSeat({ player }: { player: Player }) {
 
   if (player.name) {
     return (
-      <div>
+      <div className="flex flex-col gap-2 items-center">
         <div className="font-medium">{player.name}</div>
+        {player.guid === guid && (
+          <div>
+            <Button
+              onClick={() => {
+                send({
+                  type: 'leave',
+                  guid,
+                })
+              }}
+            >
+              Leave seat
+            </Button>
+          </div>
+        )}
       </div>
     )
   }
@@ -654,8 +668,9 @@ function handleMsg(msg: any) {
       const gameState = { ...atomStore.get(gameStateAtom) }
       for (let i = 0; i < 5; i++) {
         const seatKey = `seat${i + 1}` as SeatKey
-        const name = newServerState[seatKey].split(':')[1] || ''
+        const [guid, name] = newServerState[seatKey].split(':', 2)
         gameState.players[i].name = name
+        gameState.players[i].guid = guid
       }
 
       if (needsInitialize) {
