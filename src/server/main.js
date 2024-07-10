@@ -55,7 +55,7 @@ function whichSeat(guid, gameState) {
 wss.on('connection', async (ws) => {
     let channel = null;
     let guid = '';
-    let name = 'Anonymous';
+    let name = '';
     let gameKey = '';
     let moveKey = '';
     const client = await redis;
@@ -84,14 +84,6 @@ wss.on('connection', async (ws) => {
         if (channel) {
             const wsMap = sockets[channel];
             delete wsMap[guid];
-            const gameState = await getGameState();
-            if (gameState) {
-                const seat = whichSeat(guid, gameState);
-                if (seat) {
-                    gameState[seat] = '';
-                    setGameState(gameState);
-                }
-            }
         }
     });
     ws.on('message', async (data) => {
@@ -108,10 +100,11 @@ wss.on('connection', async (ws) => {
         switch (msgJson.type) {
             case 'subscribe': {
                 const subscribeMsg = msgJson;
-                if (!subscribeMsg.channel) {
+                if (!subscribeMsg.channel || !subscribeMsg.channel) {
                     return sendError(ws, 'Subscribe is missing channel');
                 }
                 channel = subscribeMsg.channel;
+                guid = subscribeMsg.guid;
                 if (!sockets[channel]) {
                     sockets[channel] = {};
                 }
@@ -131,6 +124,7 @@ wss.on('connection', async (ws) => {
                         seat3: '',
                         seat4: '',
                         seat5: '',
+                        meta: '',
                         startingSeats: '',
                         status: 'waiting'
                     };
@@ -155,6 +149,7 @@ wss.on('connection', async (ws) => {
                     return sendError(ws, 'Too many players already');
                 }
                 const seat = msgJson.seat;
+                name = msgJson.name || 'Anonymous';
                 if (seat !== 'seat1' && seat !== 'seat2' && seat !== 'seat3' && seat !== 'seat4' && seat !== 'seat5') {
                     return sendError(ws, 'Invalid seat');
                 }
@@ -173,7 +168,11 @@ wss.on('connection', async (ws) => {
                 if (filledSeats(gameState) < 3) {
                     return sendError(ws, 'Not enough players');
                 }
-                setGameState({ status: 'started', startingSeats: getStartingSeats(gameState).join(',') });
+                setGameState({
+                    status: 'started',
+                    meta: msgJson.meta ? JSON.stringify(msgJson.meta) : '',
+                    startingSeats: getStartingSeats(gameState).join(',')
+                });
             }
             case 'leave': {
                 const guid = msgJson.guid;

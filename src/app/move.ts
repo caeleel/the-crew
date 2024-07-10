@@ -12,13 +12,19 @@ interface HintMove {
   hint: Hint
 }
 
+interface DraftMove {
+  type: 'draft'
+  guid: string
+  id: string
+}
+
 interface EmoteMove {
   type: 'emote'
   emote: 'distress'
   guid: string
 }
 
-export type Move = PlayMove | HintMove | EmoteMove
+export type Move = PlayMove | HintMove | DraftMove | EmoteMove
 
 export function parseMove(move: string): Move | null {
   const parts = move.split(':')
@@ -28,7 +34,7 @@ export function parseMove(move: string): Move | null {
       return {
         type: 'play',
         guid,
-        card: parts[2] as CardValue
+        card: parts[2] as CardValue,
       }
     case 'h':
       return {
@@ -45,6 +51,12 @@ export function parseMove(move: string): Move | null {
         guid,
         emote: parts[2] as 'distress',
       }
+    case 'd':
+      return {
+        type: 'draft',
+        guid,
+        id: parts[2],
+      }
     default:
       return null
   }
@@ -58,5 +70,7 @@ export function serializeMove(move: Move): string {
       return `h:${move.hint.card}:${move.hint.type}`
     case 'emote':
       return `e:${move.emote}`
+    case 'draft':
+      return `d:${move.id}`
   }
 }

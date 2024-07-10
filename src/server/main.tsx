@@ -23,6 +23,7 @@ type GameState = {
   seat3: string
   seat4: string
   seat5: string
+  meta: string
   startingSeats: string
   status: 'started' | 'waiting'
 }
@@ -30,6 +31,7 @@ type GameState = {
 type SubscribeMsg = {
   type: 'subscribe'
   channel: string
+  guid: string
 }
 
 function send(ws: WebSocket, data: any) {
@@ -91,7 +93,7 @@ function whichSeat(guid: string, gameState: GameState): keyof GameState | null {
 wss.on('connection', async (ws) => {
   let channel: string | null = null
   let guid = ''
-  let name = 'Anonymous'
+  let name = ''
   let gameKey = ''
   let moveKey = ''
 
@@ -127,15 +129,6 @@ wss.on('connection', async (ws) => {
     if (channel) {
       const wsMap = sockets[channel]
       delete wsMap[guid]
-
-      const gameState = await getGameState()
-      if (gameState) {
-        const seat = whichSeat(guid, gameState)
-        if (seat) {
-          (gameState as any)[seat] = ''
-          setGameState(gameState)
-        }
-      }
     }
   })
 
@@ -155,11 +148,12 @@ wss.on('connection', async (ws) => {
     switch (msgJson.type) {
       case 'subscribe': {
         const subscribeMsg = msgJson as SubscribeMsg
-        if (!subscribeMsg.channel) {
+        if (!subscribeMsg.channel || !subscribeMsg.channel) {
           return sendError(ws, 'Subscribe is missing channel')
         }
 
         channel = subscribeMsg.channel
+        guid = subscribeMsg.guid
 
         if (!sockets[channel]) {
           sockets[channel] = {}
@@ -181,6 +175,7 @@ wss.on('connection', async (ws) => {
             seat3: '',
             seat4: '',
             seat5: '',
+            meta: '',
             startingSeats: '',
             status: 'waiting'
           }
@@ -210,6 +205,7 @@ wss.on('connection', async (ws) => {
         }
 
         const seat = msgJson.seat as keyof GameState
+        name = msgJson.name || 'Anonymous'
         if (seat !== 'seat1' && seat !== 'seat2' && seat !== 'seat3' && seat !== 'seat4' && seat !== 'seat5') {
           return sendError(ws, 'Invalid seat')
         }
@@ -232,7 +228,11 @@ wss.on('connection', async (ws) => {
           return sendError(ws, 'Not enough players')
         }
 
-        setGameState({ status: 'started', startingSeats: getStartingSeats(gameState).join(',') })
+        setGameState({
+          status: 'started',
+          meta: msgJson.meta ? JSON.stringify(msgJson.meta) : '',
+          startingSeats: getStartingSeats(gameState).join(',')
+        })
       }
       case 'leave': {
         const guid = msgJson.guid
