@@ -351,17 +351,19 @@ function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
           <Card card={card.card} big showNumber />
         </div>
       ))}
-      <Button
-        onClick={() => {
-          if (confirm('Are you sure you want to end the game?')) {
-            send({
-              type: 'reset',
-            })
-          }
-        }}
-      >
-        Next game
-      </Button>
+      <div className="absolute place-self-center top-2">
+        <Button
+          onClick={() => {
+            if (confirm('Are you sure you want to end the game?')) {
+              send({
+                type: 'reset',
+              })
+            }
+          }}
+        >
+          Next game
+        </Button>
+      </div>
     </>
   )
 }
