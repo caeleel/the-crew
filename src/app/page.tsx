@@ -578,6 +578,8 @@ function initializeGameState(gameState: GameState) {
   const totalTricks = Math.floor(cards.length / activeSeats.length)
   const players: Player[] = []
 
+  gameState.activeTrick = []
+  gameState.previousTrick = []
   gameState.totalTricks = totalTricks
   gameState.missions = allocateMissions(shuffledMissions, activeSeats.length)
   gameState.players = players
