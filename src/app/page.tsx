@@ -201,10 +201,11 @@ function PlayingSeat({ player }: { player: Player }) {
         <Signal hint={player.hint || signal} />
         {!player.hint && signal && <div>(pending signal)</div>}
       </div>
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3">
         <Hand
           highlight={canUseCard}
           hand={player.hand}
+          big={isMe}
           showBack={!isMe}
           showNumber
           onClick={(card) => {
@@ -226,7 +227,12 @@ function PlayingSeat({ player }: { player: Player }) {
             }
           }}
         />
-        {isMe && !player.hint && !signaling && (
+        {!!gameState.missions.length && (
+          <div className="h-7 text-slate-400">
+            Pass ({player.passesRemaining} remaining)
+          </div>
+        )}
+        {isMe && !player.hint && !signaling && !gameState.missions.length && (
           <div className="h-7">
             <Button
               small
@@ -239,7 +245,7 @@ function PlayingSeat({ player }: { player: Player }) {
           </div>
         )}
         {isMe && signaling && (
-          <div className="h-7 text-xs leading-6">{'<- Pick 1'}</div>
+          <div className="h-7 text-xs leading-6">{'^ Pick 1'}</div>
         )}
       </div>
       <div className="flex gap-2">
@@ -328,11 +334,11 @@ function MissionPicker({
 
 function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
   const positionMap = {
-    seat1: 'left-2 top-0 bottom-0 mt-auto mb-auto',
-    seat2: 'right-2 top-0 bottom-0 mt-auto mb-auto',
-    seat3: 'right-2 bottom-2',
-    seat4: 'bottom-2 left-0 right-0 ml-auto mr-auto',
-    seat5: 'left-2 bottom-2',
+    seat1: 'left-2',
+    seat2: 'right-2',
+    seat3: 'bottom-2 right-2',
+    seat4: 'bottom-2',
+    seat5: 'bottom-2 left-2',
   }
 
   return (
@@ -340,9 +346,9 @@ function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
       {trick.map((card) => (
         <div
           key={card.card}
-          className={`absolute w-4 h-8 ${positionMap[card.position]}`}
+          className={`absolute flex place-self-center ${positionMap[card.position]}`}
         >
-          <Card card={card.card} showNumber />
+          <Card card={card.card} big showNumber />
         </div>
       ))}
       <Button

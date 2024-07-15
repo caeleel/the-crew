@@ -96,6 +96,7 @@ export function CardNumber({ n }: { n: number }) {
 
 export function Card({
   card,
+  big,
   showNumber,
   multi,
   showBack,
@@ -103,6 +104,7 @@ export function Card({
   highlight,
 }: {
   card: CardValue
+  big?: boolean
   showNumber?: boolean
   multi?: boolean
   showBack?: boolean
@@ -110,6 +112,8 @@ export function Card({
   highlight?: boolean
 }) {
   const suit = card[0] as SuitWithSubs
+  const cardSize = big ? 'w-12 h-16' : 'w-3 h-5'
+  const numberSize = big ? 'text-lg' : ''
   const halfDims = 'w-1.5 h-2.5'
 
   return (
@@ -118,7 +122,7 @@ export function Card({
     >
       {!multi && (
         <div
-          className={`${showBack ? 'bg-sky-700' : suitToBg[suit]} w-3 h-5 flex items-center justify-center`}
+          className={`${showBack ? 'bg-sky-700' : suitToBg[suit]} ${cardSize} flex items-center justify-center`}
         />
       )}
       {multi && (
@@ -134,8 +138,10 @@ export function Card({
         </>
       )}
       {showNumber && !showBack && (
-        <div className="absolute w-3 h-5 flex items-center justify-center top-0 left-0">
-          <div className="drop-shadow">{card[1]}</div>
+        <div
+          className={`absolute ${cardSize} flex items-center justify-center top-0 left-0`}
+        >
+          <div className={`${numberSize} drop-shadow`}>{card[1]}</div>
         </div>
       )}
       {multiplier && (
@@ -152,6 +158,7 @@ export function Card({
 
 export function Hand({
   hand,
+  big,
   showBack,
   showNumber,
   multi,
@@ -160,6 +167,7 @@ export function Hand({
   onClick,
 }: {
   hand: CardValue[]
+  big?: boolean
   showBack?: boolean
   showNumber?: boolean
   multi?: boolean
@@ -168,11 +176,12 @@ export function Hand({
   onClick?: (card: CardValue) => void
 }) {
   return (
-    <div className="flex gap-1">
+    <div className="flex flex-wrap gap-1">
       {hand.map((card) => (
         <div key={card} onClick={onClick ? () => onClick(card) : undefined}>
           <Card
             card={card}
+            big={big}
             showBack={showBack}
             showNumber={showNumber}
             multi={multi}
