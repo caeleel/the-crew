@@ -1,7 +1,15 @@
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
-import { Card, cards, CardValue, Hand, Hint, Signal } from './cards'
+import {
+  Card,
+  cards,
+  CardValue,
+  Hand,
+  Hint,
+  Signal,
+  SignalButton,
+} from './cards'
 import { missions, Mission, MissionCard } from './missions'
 import { Move, parseMove } from './move'
 import { shuffle, setSeeds } from './rand'
@@ -24,6 +32,7 @@ import {
   atomStore,
   cloneEmptyPlayer,
 } from './atoms'
+import { Button } from './button'
 
 let moves: Move[] = []
 let currentTarget = 12
@@ -46,35 +55,6 @@ function Slot({
     >
       {children}
     </div>
-  )
-}
-
-function Button({
-  children,
-  onClick,
-  disabled,
-  full,
-  small,
-}: {
-  children: ReactNode
-  onClick: () => void
-  disabled?: boolean
-  full?: boolean
-  small?: boolean
-}) {
-  let sizing = `px-4 py-2`
-  if (small) {
-    sizing = `px-2 py-1 text-xs`
-  }
-
-  return (
-    <button
-      className={`border border-white bg-white ${disabled ? 'border-slate-200' : 'hover:border-emerald-200'} disabled:bg-slate-50 disabled:cursor-default disabled:text-slate-300 rounded-md ${sizing} cursor-pointer ${full ? 'w-full' : ''}`}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   )
 }
 
@@ -130,7 +110,7 @@ function PreGameSeat({ player }: { player: Player }) {
 function PlayingSeat({ player }: { player: Player }) {
   const gameState = useAtomValue(gameStateAtom)
   const [signaling, setSignaling] = useState(false)
-  const [signal, setSignal] = useState<Hint | null>(null)
+  const [pendingSignal, setPendingSignal] = useState<Hint | null>(null)
 
   const isMe = player.guid === guid
   const isActivePlayer =
@@ -147,6 +127,8 @@ function PlayingSeat({ player }: { player: Player }) {
   if (leadCard) {
     hasSuit = player.hand.some((card) => card[0] === leadCard[0])
   }
+
+  const canSignal = isMe && !player.hint && !gameState.missions.length
 
   const signalType = (card: CardValue) => {
     const suit = card[0]
@@ -194,12 +176,22 @@ function PlayingSeat({ player }: { player: Player }) {
 
   return (
     <div className="p-3 flex flex-col gap-4" style={slotStyle}>
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <div className="font-bold">
           {player.seat === gameState.captainSeat && '👑'} {player.name}
         </div>
-        <Signal hint={player.hint || signal} />
-        {!player.hint && signal && <div>(pending signal)</div>}
+        <Signal hint={player.hint || pendingSignal} />
+        {canSignal && (
+          <SignalButton
+            pendingSignal={pendingSignal}
+            signaling={signaling}
+            startSignaling={() => setSignaling(true)}
+            cancelSignal={() => {
+              setSignaling(false)
+              setPendingSignal(null)
+            }}
+          />
+        )}
       </div>
       <div className="flex flex-col gap-3">
         <Hand
@@ -216,7 +208,7 @@ function PlayingSeat({ player }: { player: Player }) {
                   type: 'move',
                   move: `h:${card}:${type}`,
                 })
-                setSignal({ card, type, played: false })
+                setPendingSignal({ card, type, played: false })
                 setSignaling(false)
               } else {
                 send({
@@ -231,21 +223,6 @@ function PlayingSeat({ player }: { player: Player }) {
           <div className="h-7 text-slate-400">
             Pass ({player.passesRemaining} remaining)
           </div>
-        )}
-        {isMe && !player.hint && !signaling && !gameState.missions.length && (
-          <div className="h-7">
-            <Button
-              small
-              onClick={() => {
-                setSignaling(true)
-              }}
-            >
-              Signal
-            </Button>
-          </div>
-        )}
-        {isMe && signaling && (
-          <div className="h-7 text-xs leading-6">{'^ Pick 1'}</div>
         )}
       </div>
       <div className="flex gap-2">

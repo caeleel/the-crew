@@ -1,3 +1,5 @@
+import { Button } from './button'
+
 export const cards = [
   'B1',
   'B2',
@@ -81,6 +83,42 @@ export function Signal({ hint }: { hint: Hint | null }) {
       <Card card={hint.card} showNumber />
       <div>{symbol}</div>
     </div>
+  )
+}
+
+export function SignalButton({
+  pendingSignal,
+  signaling,
+  startSignaling,
+  cancelSignal,
+}: {
+  pendingSignal: Hint | null
+  signaling: boolean
+  startSignaling: () => void
+  cancelSignal: () => void
+}) {
+  const status = pendingSignal
+    ? 'Pending signal...'
+    : signaling
+      ? 'Signal a card...'
+      : ''
+
+  return (
+    <>
+      {status && <div className="text-sm text-slate-400">{status}</div>}
+      <Button
+        small
+        onClick={() => {
+          if (signaling || pendingSignal) {
+            cancelSignal()
+          } else {
+            startSignaling()
+          }
+        }}
+      >
+        {signaling || pendingSignal ? 'Cancel' : 'Signal'}
+      </Button>
+    </>
   )
 }
 
