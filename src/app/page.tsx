@@ -332,7 +332,13 @@ function MissionPicker({
   )
 }
 
-function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
+function ActiveTrick({
+  trick,
+  faded,
+}: {
+  trick: CardWithPosition[]
+  faded?: boolean
+}) {
   const positionMap = {
     seat1: 'left-2',
     seat2: 'right-2',
@@ -346,7 +352,7 @@ function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
       {trick.map((card) => (
         <div
           key={card.card}
-          className={`absolute flex place-self-center ${positionMap[card.position]}`}
+          className={`absolute flex place-self-center ${positionMap[card.position]} ${faded ? 'animate-fade' : ''}`}
         >
           <Card card={card.card} big showNumber />
         </div>
@@ -383,7 +389,12 @@ function Table() {
       return <MissionPicker gameState={gameState} serverState={serverState} />
     }
 
-    return <ActiveTrick trick={gameState.activeTrick} />
+    const trick = gameState.activeTrick.length
+      ? gameState.activeTrick
+      : gameState.previousTrick
+    return (
+      <ActiveTrick trick={trick} faded={gameState.activeTrick.length === 0} />
+    )
   }
 
   if (joined(guid, serverState)) {
@@ -545,6 +556,7 @@ function applyMove(
   }
 
   if (move.type === 'play') {
+    gameState.previousTrick = []
     gameState.activeTrick.push({
       card: move.card,
       position: activePlayer.seat,
@@ -559,6 +571,7 @@ function applyMove(
       const winnerIdx = seatToIdx(winnerCard.position)
       const winner = gameState.players[winnerIdx]
       winner.tricks.push(gameState.activeTrick)
+      gameState.previousTrick = gameState.activeTrick
       gameState.activeTrick = []
       gameState.turnIdx = winnerIdx
       gameState.whoseTurn = winner.seat
