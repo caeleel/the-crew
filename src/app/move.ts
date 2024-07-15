@@ -6,10 +6,10 @@ interface PlayMove {
   card: CardValue
 }
 
-interface HintMove {
+export interface HintMove {
   type: 'hint'
   guid: string
-  hint: Hint
+  hint: Hint | null
 }
 
 interface DraftMove {
@@ -37,6 +37,9 @@ export function parseMove(move: string): Move | null {
         card: parts[2] as CardValue,
       }
     case 'h':
+      if (parts[2] === 'cancel') {
+        return { type: 'hint', guid, hint: null }
+      }
       return {
         type: 'hint',
         guid,

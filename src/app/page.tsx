@@ -11,7 +11,7 @@ import {
   SignalButton,
 } from './cards'
 import { missions, Mission, MissionCard } from './missions'
-import { Move, parseMove } from './move'
+import { HintMove, Move, parseMove } from './move'
 import { shuffle, setSeeds } from './rand'
 import { Provider, useAtom, useAtomValue } from 'jotai'
 import {
@@ -187,6 +187,7 @@ function PlayingSeat({ player }: { player: Player }) {
             signaling={signaling}
             startSignaling={() => setSignaling(true)}
             cancelSignal={() => {
+              send({ type: 'move', move: 'h:cancel' })
               setSignaling(false)
               setPendingSignal(null)
             }}
@@ -438,13 +439,17 @@ function allocateMissions(missions: Mission[], players: number) {
   return chosen
 }
 
-let onNextTrick: Move[] = []
+let pendingHints: {
+  [guid: string]: Hint | null
+} = {}
 
 function flushMoveQueue(gameState: GameState, serverState: ServerGameState) {
-  for (const move of onNextTrick) {
-    applyMove(move, gameState, serverState)
+  for (const guid of Object.keys(pendingHints)) {
+    const hint = pendingHints[guid]
+    applyMove({ type: 'hint', guid, hint }, gameState, serverState)
+    console.log('resulting game state', { gameState, serverState })
   }
-  onNextTrick = []
+  pendingHints = {}
 }
 
 function findWinner(trick: CardWithPosition[]): CardWithPosition {
@@ -482,7 +487,7 @@ function applyMove(
 
   if (gameState.missions.length) {
     if (move.type === 'hint') {
-      onNextTrick.push(move)
+      pendingHints[move.guid] = move.hint
       return
     }
 
@@ -515,7 +520,7 @@ function applyMove(
 
   if (move.type === 'hint') {
     if (gameState.activeTrick.length) {
-      onNextTrick.push(move)
+      pendingHints[move.guid] = move.hint
       return
     }
 
@@ -525,7 +530,7 @@ function applyMove(
       return
     }
 
-    if (!player.hand.includes(move.hint.card)) {
+    if (move.hint && !player.hand.includes(move.hint.card)) {
       return
     }
 
