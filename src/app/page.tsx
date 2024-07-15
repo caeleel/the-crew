@@ -218,6 +218,7 @@ function PlayingSeat({ player }: { player: Player }) {
               }
             }
           }}
+          indicateUnplayableCards={signaling}
         />
         {!!gameState.missions.length && (
           <div className="h-7 text-slate-400">

@@ -203,6 +203,7 @@ export function Hand({
   multiplier,
   highlight,
   onClick,
+  indicateUnplayableCards,
 }: {
   hand: CardValue[]
   big?: boolean
@@ -212,22 +213,30 @@ export function Hand({
   multiplier?: number
   highlight?: (card: CardValue) => boolean
   onClick?: (card: CardValue) => void
+  indicateUnplayableCards?: boolean
 }) {
   return (
     <div className="flex flex-wrap gap-1">
-      {hand.map((card) => (
-        <div key={card} onClick={onClick ? () => onClick(card) : undefined}>
-          <Card
-            card={card}
-            big={big}
-            showBack={showBack}
-            showNumber={showNumber}
-            multi={multi}
-            multiplier={multiplier}
-            highlight={highlight ? highlight(card) : false}
-          />
-        </div>
-      ))}
+      {hand.map((card) => {
+        const faded = indicateUnplayableCards && highlight && !highlight(card)
+        return (
+          <div
+            key={card}
+            onClick={onClick ? () => onClick(card) : undefined}
+            className={faded ? 'opacity-50' : ''}
+          >
+            <Card
+              card={card}
+              big={big}
+              showBack={showBack}
+              showNumber={showNumber}
+              multi={multi}
+              multiplier={multiplier}
+              highlight={highlight ? highlight(card) : false}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }
