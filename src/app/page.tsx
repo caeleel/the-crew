@@ -706,7 +706,11 @@ function handleMsg(msg: any) {
 }
 
 if (typeof window !== 'undefined') {
-  const channel = document.location.href.split('#', 2)[1]
+  let channel = document.location.href.split('#', 2)[1]
+  if (!channel) {
+    channel = crypto.randomUUID()
+    document.location.href += '#' + channel
+  }
   console.log('connecting...')
   connect((msg) => {
     handleMsg(msg)
