@@ -25,6 +25,7 @@ export interface Player {
 export interface GameState {
   players: Player[]
   activeTrick: Trick
+  previousTrick: Trick
   captainSeat: SeatKey
   totalTricks: number
   missions: Mission[]

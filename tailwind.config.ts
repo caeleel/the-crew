@@ -9,6 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       '128': '32rem',
+      keyframes: {
+        fade: {
+          '0%': { opacity: '1' },
+          '100%': { opacity: '0.5' },
+        },
+      },
+      animation: {
+        fade: 'fade 0.5s ease-in-out 1s 1 forwards',
+      },
     },
   },
   plugins: [],

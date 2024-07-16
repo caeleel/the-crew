@@ -1,9 +1,17 @@
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
-import { Card, cards, CardValue, Hand, Hint, Signal } from './cards'
+import {
+  Card,
+  cards,
+  CardValue,
+  Hand,
+  Hint,
+  Signal,
+  SignalButton,
+} from './cards'
 import { missions, Mission, MissionCard } from './missions'
-import { Move, parseMove } from './move'
+import { HintMove, Move, parseMove } from './move'
 import { shuffle, setSeeds } from './rand'
 import { Provider, useAtom, useAtomValue } from 'jotai'
 import {
@@ -24,6 +32,7 @@ import {
   atomStore,
   cloneEmptyPlayer,
 } from './atoms'
+import { Button } from './button'
 
 let moves: Move[] = []
 let currentTarget = 12
@@ -46,35 +55,6 @@ function Slot({
     >
       {children}
     </div>
-  )
-}
-
-function Button({
-  children,
-  onClick,
-  disabled,
-  full,
-  small,
-}: {
-  children: ReactNode
-  onClick: () => void
-  disabled?: boolean
-  full?: boolean
-  small?: boolean
-}) {
-  let sizing = `px-4 py-2`
-  if (small) {
-    sizing = `px-2 py-1 text-xs`
-  }
-
-  return (
-    <button
-      className={`border border-white bg-white ${disabled ? 'border-slate-200' : 'hover:border-emerald-200'} disabled:bg-slate-50 disabled:cursor-default disabled:text-slate-300 rounded-md ${sizing} cursor-pointer ${full ? 'w-full' : ''}`}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   )
 }
 
@@ -130,7 +110,7 @@ function PreGameSeat({ player }: { player: Player }) {
 function PlayingSeat({ player }: { player: Player }) {
   const gameState = useAtomValue(gameStateAtom)
   const [signaling, setSignaling] = useState(false)
-  const [signal, setSignal] = useState<Hint | null>(null)
+  const [pendingSignal, setPendingSignal] = useState<Hint | null>(null)
 
   const isMe = player.guid === guid
   const isActivePlayer =
@@ -147,6 +127,8 @@ function PlayingSeat({ player }: { player: Player }) {
   if (leadCard) {
     hasSuit = player.hand.some((card) => card[0] === leadCard[0])
   }
+
+  const canSignal = isMe && !player.hint && !gameState.missions.length
 
   const signalType = (card: CardValue) => {
     const suit = card[0]
@@ -194,17 +176,29 @@ function PlayingSeat({ player }: { player: Player }) {
 
   return (
     <div className="p-3 flex flex-col gap-4" style={slotStyle}>
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         <div className="font-bold">
           {player.seat === gameState.captainSeat && '👑'} {player.name}
         </div>
-        <Signal hint={player.hint || signal} />
-        {!player.hint && signal && <div>(pending signal)</div>}
+        <Signal hint={player.hint || pendingSignal} />
+        {canSignal && (
+          <SignalButton
+            pendingSignal={pendingSignal}
+            signaling={signaling}
+            startSignaling={() => setSignaling(true)}
+            cancelSignal={() => {
+              send({ type: 'move', move: 'h:cancel' })
+              setSignaling(false)
+              setPendingSignal(null)
+            }}
+          />
+        )}
       </div>
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3">
         <Hand
           highlight={canUseCard}
           hand={player.hand}
+          big={isMe}
           showBack={!isMe}
           showNumber
           onClick={(card) => {
@@ -215,7 +209,7 @@ function PlayingSeat({ player }: { player: Player }) {
                   type: 'move',
                   move: `h:${card}:${type}`,
                 })
-                setSignal({ card, type, played: false })
+                setPendingSignal({ card, type, played: false })
                 setSignaling(false)
               } else {
                 send({
@@ -225,21 +219,12 @@ function PlayingSeat({ player }: { player: Player }) {
               }
             }
           }}
+          indicateUnplayableCards={signaling}
         />
-        {isMe && !player.hint && !signaling && (
-          <div className="h-7">
-            <Button
-              small
-              onClick={() => {
-                setSignaling(true)
-              }}
-            >
-              Signal
-            </Button>
+        {!!gameState.missions.length && (
+          <div className="h-7 text-slate-400">
+            Pass ({player.passesRemaining} remaining)
           </div>
-        )}
-        {isMe && signaling && (
-          <div className="h-7 text-xs leading-6">{'<- Pick 1'}</div>
         )}
       </div>
       <div className="flex gap-2">
@@ -326,13 +311,19 @@ function MissionPicker({
   )
 }
 
-function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
+function ActiveTrick({
+  trick,
+  faded,
+}: {
+  trick: CardWithPosition[]
+  faded?: boolean
+}) {
   const positionMap = {
-    seat1: 'left-2 top-0 bottom-0 mt-auto mb-auto',
-    seat2: 'right-2 top-0 bottom-0 mt-auto mb-auto',
-    seat3: 'right-2 bottom-2',
-    seat4: 'bottom-2 left-0 right-0 ml-auto mr-auto',
-    seat5: 'left-2 bottom-2',
+    seat1: 'left-2',
+    seat2: 'right-2',
+    seat3: 'bottom-2 right-2',
+    seat4: 'bottom-2',
+    seat5: 'bottom-2 left-2',
   }
 
   return (
@@ -340,22 +331,24 @@ function ActiveTrick({ trick }: { trick: CardWithPosition[] }) {
       {trick.map((card) => (
         <div
           key={card.card}
-          className={`absolute w-4 h-8 ${positionMap[card.position]}`}
+          className={`absolute flex place-self-center ${positionMap[card.position]} ${faded ? 'animate-fade' : ''}`}
         >
-          <Card card={card.card} showNumber />
+          <Card card={card.card} big showNumber />
         </div>
       ))}
-      <Button
-        onClick={() => {
-          if (confirm('Are you sure you want to end the game?')) {
-            send({
-              type: 'reset',
-            })
-          }
-        }}
-      >
-        Next game
-      </Button>
+      <div className="absolute place-self-center top-2">
+        <Button
+          onClick={() => {
+            if (confirm('Are you sure you want to end the game?')) {
+              send({
+                type: 'reset',
+              })
+            }
+          }}
+        >
+          Next game
+        </Button>
+      </div>
     </>
   )
 }
@@ -375,7 +368,12 @@ function Table() {
       return <MissionPicker gameState={gameState} serverState={serverState} />
     }
 
-    return <ActiveTrick trick={gameState.activeTrick} />
+    const trick = gameState.activeTrick.length
+      ? gameState.activeTrick
+      : gameState.previousTrick
+    return (
+      <ActiveTrick trick={trick} faded={gameState.activeTrick.length === 0} />
+    )
   }
 
   if (joined(guid, serverState)) {
@@ -441,13 +439,17 @@ function allocateMissions(missions: Mission[], players: number) {
   return chosen
 }
 
-let onNextTrick: Move[] = []
+let pendingHints: {
+  [guid: string]: Hint | null
+} = {}
 
 function flushMoveQueue(gameState: GameState, serverState: ServerGameState) {
-  for (const move of onNextTrick) {
-    applyMove(move, gameState, serverState)
+  for (const guid of Object.keys(pendingHints)) {
+    const hint = pendingHints[guid]
+    applyMove({ type: 'hint', guid, hint }, gameState, serverState)
+    console.log('resulting game state', { gameState, serverState })
   }
-  onNextTrick = []
+  pendingHints = {}
 }
 
 function findWinner(trick: CardWithPosition[]): CardWithPosition {
@@ -485,7 +487,7 @@ function applyMove(
 
   if (gameState.missions.length) {
     if (move.type === 'hint') {
-      onNextTrick.push(move)
+      pendingHints[move.guid] = move.hint
       return
     }
 
@@ -518,7 +520,7 @@ function applyMove(
 
   if (move.type === 'hint') {
     if (gameState.activeTrick.length) {
-      onNextTrick.push(move)
+      pendingHints[move.guid] = move.hint
       return
     }
 
@@ -528,7 +530,7 @@ function applyMove(
       return
     }
 
-    if (!player.hand.includes(move.hint.card)) {
+    if (move.hint && !player.hand.includes(move.hint.card)) {
       return
     }
 
@@ -537,6 +539,7 @@ function applyMove(
   }
 
   if (move.type === 'play') {
+    gameState.previousTrick = []
     gameState.activeTrick.push({
       card: move.card,
       position: activePlayer.seat,
@@ -551,6 +554,7 @@ function applyMove(
       const winnerIdx = seatToIdx(winnerCard.position)
       const winner = gameState.players[winnerIdx]
       winner.tricks.push(gameState.activeTrick)
+      gameState.previousTrick = gameState.activeTrick
       gameState.activeTrick = []
       gameState.turnIdx = winnerIdx
       gameState.whoseTurn = winner.seat
@@ -574,6 +578,8 @@ function initializeGameState(gameState: GameState) {
   const totalTricks = Math.floor(cards.length / activeSeats.length)
   const players: Player[] = []
 
+  gameState.activeTrick = []
+  gameState.previousTrick = []
   gameState.totalTricks = totalTricks
   gameState.missions = allocateMissions(shuffledMissions, activeSeats.length)
   gameState.players = players
