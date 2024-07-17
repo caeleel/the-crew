@@ -45,6 +45,16 @@ export const cards = [
 
 export type CardValue = (typeof cards)[number]
 
+export function getSuit(cardValue: CardValue): SuitWithSubs {
+  return cardValue[0] as Suit
+}
+export function getNumber(cardValue: CardValue): number {
+  return parseInt(cardValue[1])
+}
+export function isSub(cardValue: CardValue): boolean {
+  return getSuit(cardValue) === 's'
+}
+
 export interface Hint {
   card: CardValue
   type: 'top' | 'only' | 'bottom'

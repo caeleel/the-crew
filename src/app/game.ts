@@ -8,7 +8,7 @@ export interface CardWithPosition {
   position: SeatKey
 }
 
-type Trick = CardWithPosition[]
+export type Trick = CardWithPosition[]
 
 export interface Player {
   name: string
@@ -50,6 +50,8 @@ export interface ServerGameState {
   startingSeats: SeatKey[]
   status: 'started' | 'waiting'
 }
+
+export type Settings = { validateMissions: boolean }
 
 function allGuids(serverState: ServerGameState): string[] {
   const firstPart = (x: string) => x.split(':')[0]

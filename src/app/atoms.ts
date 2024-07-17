@@ -1,5 +1,5 @@
 import { atom, createStore } from 'jotai'
-import { GameState, Player, SeatKey, ServerGameState } from './game'
+import { GameState, Player, SeatKey, ServerGameState, Settings } from './game'
 import { getLocalStorage } from './local-storage'
 
 export const emptyPlayer: Player = {
@@ -55,3 +55,8 @@ export const gameStateAtom = atom<GameState>({
 
 let name = getLocalStorage('name') || ''
 export const nameAtom = atom(name)
+
+// try mission checking features
+export const checkMissionsAtom = atom<boolean>((get) =>
+  get(nameAtom).includes('🐛'),
+)
