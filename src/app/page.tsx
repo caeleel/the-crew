@@ -33,6 +33,8 @@ import {
   cloneEmptyPlayer,
 } from './atoms'
 import { Button } from './button'
+import { findWinner } from './utils'
+import { updateMissionStatuses } from './validate'
 
 let moves: Move[] = []
 let currentTarget = 12
@@ -452,17 +454,6 @@ function flushMoveQueue(gameState: GameState, serverState: ServerGameState) {
   pendingHints = {}
 }
 
-function findWinner(trick: CardWithPosition[]): CardWithPosition {
-  const lead = trick[0]
-  let toSort = trick.filter((c) => c.card[0] === 's')
-  if (toSort.length === 0) {
-    toSort = trick.filter((c) => c.card[0] === lead.card[0])
-  }
-
-  toSort.sort((a, b) => (a.card < b.card ? 1 : -1))
-  return toSort[0]
-}
-
 function applyMove(
   move: Move,
   gameState: GameState,
@@ -559,6 +550,7 @@ function applyMove(
       gameState.turnIdx = winnerIdx
       gameState.whoseTurn = winner.seat
       flushMoveQueue(gameState, serverState)
+      updateMissionStatuses(gameState)
     } else {
       rotatePlayer()
     }

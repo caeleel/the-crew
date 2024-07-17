@@ -1,11 +1,17 @@
+import { useAtomValue } from 'jotai'
 import { Card, CardNumber, CardValue, Hand, Suit, SuitWithSubs } from './cards'
+import { checkMissionsAtom } from './atoms'
 
 type Comparator = 'more' | 'fewer' | 'as many' | 'moreCombined'
 type PlayerNumArray = [number, number, number]
 
+export type MissionStatus = 'pass' | 'fail' | undefined
+
 export interface Mission {
   points: PlayerNumArray
   id: string
+  status?: MissionStatus
+
   willWin?: CardValue[]
   wontWinNumbers?: number[]
   wontWinColors?: SuitWithSubs[]
@@ -568,14 +574,25 @@ export function MissionCard({
   numPlayers: number
   isActivePlayer?: boolean
 }) {
+  const showStatus = useAtomValue(checkMissionsAtom)
+
+  const bgColor = showStatus && mission.status ? 'bg-gray-200' : 'bg-sky-200'
+  const status =
+    mission.status === 'pass' ? '✅' : mission.status === 'fail' ? '😢' : null
+
   return (
     <div
-      className={`${isActivePlayer ? 'hover:border-emerald-200' : ''} border-2 rounded-md border-white h-32 p-2 bg-sky-200 flex flex-col relative justify-center drop-shadow-md`}
+      className={`${isActivePlayer ? 'hover:border-emerald-200' : ''} border-2 rounded-md border-white h-32 p-2 ${bgColor} flex flex-col relative justify-center drop-shadow-md`}
       style={{ fontSize: '10px', width: '104px' }}
     >
       <div className="flex flex-col items-center gap-2 font-bold select-none">
         <MissionInner mission={mission} numPlayers={numPlayers} />
       </div>
+      {showStatus && (
+        <div className="absolute top-0 right-0 text-white text-lg p-1">
+          {status}
+        </div>
+      )}
     </div>
   )
 }
