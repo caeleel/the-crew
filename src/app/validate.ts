@@ -101,7 +101,7 @@ export class MissionValidator {
       // I will win {willWin} (and not {wontWinCards})
       return (
         mission.willWin.every(this.wonCard) &&
-        !!mission.wontWinCards?.every(this.lostCard)
+        (!mission.wontWinCards || mission.wontWinCards.every(this.lostCard))
       )
     }
     if (mission.wontWinNumbers) {
