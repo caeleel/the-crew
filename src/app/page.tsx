@@ -274,6 +274,7 @@ function MissionPicker({
 
   return (
     <div className="flex flex-col justify-center gap-4 w-full">
+      <NextGameButton />
       <div className="flex gap-4 flex-wrap p-2 justify-center">
         {gameState.missions.map((mission) => (
           <div
@@ -313,6 +314,24 @@ function MissionPicker({
   )
 }
 
+function NextGameButton() {
+  return (
+    <div className="absolute place-self-center top-2">
+      <Button
+        onClick={() => {
+          if (confirm('Are you sure you want to end the game?')) {
+            send({
+              type: 'reset',
+            })
+          }
+        }}
+      >
+        Next game
+      </Button>
+    </div>
+  )
+}
+
 function ActiveTrick({
   trick,
   faded,
@@ -330,6 +349,7 @@ function ActiveTrick({
 
   return (
     <>
+      {<NextGameButton />}
       {trick.map((card) => (
         <div
           key={card.card}
@@ -338,19 +358,6 @@ function ActiveTrick({
           <Card card={card.card} big showNumber />
         </div>
       ))}
-      <div className="absolute place-self-center top-2">
-        <Button
-          onClick={() => {
-            if (confirm('Are you sure you want to end the game?')) {
-              send({
-                type: 'reset',
-              })
-            }
-          }}
-        >
-          Next game
-        </Button>
-      </div>
     </>
   )
 }
