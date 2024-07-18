@@ -269,11 +269,11 @@ export class MissionValidator {
       // In one trick, I will win equal amounts of {equalInTrick} suits
       const suitCountInTrick = (trick: Trick, suit: SuitWithSubs) =>
         trick.filter(({ card }) => getSuit(card) === suit).length
-      return this.wonTricks.some(
-        (trick) =>
-          suitCountInTrick(trick, mission.equalInTrick![0]) ===
-          suitCountInTrick(trick, mission.equalInTrick![1]),
-      )
+      return this.wonTricks.some((trick) => {
+        const count1 = suitCountInTrick(trick, mission.equalInTrick![0])
+        const count2 = suitCountInTrick(trick, mission.equalInTrick![1])
+        return count1 > 0 && count1 === count2
+      })
     }
     if (mission.comparison) {
       // In total, I will win {suit1} > {suit2} / In total, I will win {suit1} = {suit2}
