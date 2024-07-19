@@ -166,7 +166,7 @@ export function Card({
 
   return (
     <div
-      className={`border-2 select-none rounded-sm ${highlight ? 'hover:border-emerald-300' : ''} border-white text-white text-xs font-black drop-shadow`}
+      className={`relative border-2 select-none rounded-sm ${highlight ? 'hover:border-emerald-300' : ''} border-white text-white text-xs font-black drop-shadow`}
     >
       {!multi && (
         <div
