@@ -13,7 +13,7 @@ const httpServer = createServer(async function (req, res) {
     res.end('pong - v2')
     return
   }
-  if (req.method !== 'POST' && req.url !== '/reload') {
+  if (req.method !== 'POST' || req.url !== '/reload') {
     res.writeHead(404)
     res.end()
     return
