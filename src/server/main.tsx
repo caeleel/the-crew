@@ -10,7 +10,7 @@ const httpServer = createServer(async function (req, res) {
   console.log(`[${req.method}] ${req.url}`)
   if (req.method === 'GET' && req.url === '/ping') {
     res.writeHead(200)
-    res.end('pong - v1')
+    res.end('pong - v2')
     return
   }
   if (req.method !== 'POST' && req.url !== '/reload') {
