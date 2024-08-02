@@ -199,7 +199,7 @@ wss.on('connection', async (ws) => {
             seat3: '',
             seat4: '',
             seat5: '',
-            meta: '',
+            meta: '{}',
             startingSeats: '',
             status: 'waiting',
           }
@@ -260,9 +260,22 @@ wss.on('connection', async (ws) => {
 
         setGameState({
           status: 'started',
-          meta: msgJson.meta ? JSON.stringify(msgJson.meta) : '',
           startingSeats: getStartingSeats(gameState).join(','),
         })
+      }
+      case 'meta': {
+        if (!msgJson.meta) {
+          return sendError(ws, 'Meta commands require meta field')
+        }
+        const gameState = await getGameState()
+        if (!gameState) {
+          return sendError(ws, 'Game does not exist')
+        }
+
+        setGameState({
+          meta: JSON.stringify(msgJson.meta),
+        })
+        break
       }
       case 'leave': {
         const guid = msgJson.guid

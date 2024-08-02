@@ -37,7 +37,6 @@ import { findWinner } from './utils'
 import { updateMissionStatuses } from './validate'
 
 let moves: Move[] = []
-let currentTarget = 12
 const slotStyle = {
   height: '536px',
   width: '384px',
@@ -366,7 +365,13 @@ function Table() {
   const [name, setName] = useAtom(nameAtom)
   const serverState = useAtomValue(serverStateAtom)
   const gameState = useAtomValue(gameStateAtom)
-  const [pts, setPts] = useState(currentTarget)
+  const pts = serverState.meta.target || 12
+  const setPts = (pts: number) => {
+    send({
+      type: 'meta',
+      meta: { target: pts },
+    })
+  }
 
   if (!guid) {
     return null
@@ -393,7 +398,6 @@ function Table() {
             onClick={() => {
               send({
                 type: 'start',
-                meta: { target: pts },
               })
             }}
           >
