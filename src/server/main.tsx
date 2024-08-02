@@ -7,7 +7,7 @@ const wss = new WebSocketServer({ port: 8082 })
 const redis = createClient().connect()
 
 const httpServer = createServer(async function (req, res) {
-  console.log(`[${req.method}] ${req.url}`)
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`)
   if (req.method === 'GET' && req.url === '/ping') {
     res.writeHead(200)
     res.end('pong - v2')
