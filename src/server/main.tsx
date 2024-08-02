@@ -10,10 +10,12 @@ const httpServer = createServer(async function (req, res) {
   if (req.method === 'GET' && req.url === '/the-crew-http/ping') {
     res.writeHead(200)
     res.end('pong')
+    return
   }
   if (req.method !== 'POST' && req.url !== '/the-crew-http/reload') {
     res.writeHead(404)
     res.end()
+    return
   }
 
   execSync('git pull')
