@@ -1,8 +1,32 @@
 import { WebSocket, WebSocketServer } from 'ws'
 import { createClient } from 'redis'
+import { createServer } from 'http'
+import { execSync, spawn } from 'child_process'
 
 const wss = new WebSocketServer({ port: 8082 })
 const redis = createClient().connect()
+
+const httpServer = createServer(async function (req, res) {
+  if (req.method === 'GET' && req.url === '/the-crew-http/ping') {
+    res.writeHead(200)
+    res.end('pong')
+  }
+  if (req.method !== 'POST' && req.url !== '/the-crew-http/reload') {
+    res.writeHead(404)
+    res.end()
+  }
+
+  execSync('git pull')
+  process.on('exit', function () {
+    spawn('node', ['main.js'], {
+      cwd: process.cwd(),
+      detached: true,
+    })
+  })
+  process.exit()
+})
+
+httpServer.listen(8083)
 
 const sockets: {
   [channel: string]: {
