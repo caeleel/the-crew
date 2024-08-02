@@ -7,12 +7,13 @@ const wss = new WebSocketServer({ port: 8082 })
 const redis = createClient().connect()
 
 const httpServer = createServer(async function (req, res) {
-  if (req.method === 'GET' && req.url === '/the-crew-http/ping') {
+  console.log(`[${req.method}] ${req.url}`)
+  if (req.method === 'GET' && req.url === '/ping') {
     res.writeHead(200)
     res.end('pong')
     return
   }
-  if (req.method !== 'POST' && req.url !== '/the-crew-http/reload') {
+  if (req.method !== 'POST' && req.url !== '/reload') {
     res.writeHead(404)
     res.end()
     return
@@ -23,7 +24,6 @@ const httpServer = createServer(async function (req, res) {
     process.on('exit', function () {
       spawn('node', ['main.js'], {
         cwd: process.cwd(),
-        detached: true,
       })
     })
     process.exit()
