@@ -1,7 +1,7 @@
 import { WebSocket, WebSocketServer } from 'ws'
 import { createClient } from 'redis'
 import { createServer } from 'http'
-import { execSync, spawn } from 'child_process'
+import { execSync, spawn, exec } from 'child_process'
 
 const wss = new WebSocketServer({ port: 8082 })
 const redis = createClient().connect()
@@ -17,13 +17,15 @@ const httpServer = createServer(async function (req, res) {
   }
 
   execSync('git pull')
-  process.on('exit', function () {
-    spawn('node', ['main.js'], {
-      cwd: process.cwd(),
-      detached: true,
+  exec('tsc -m nodenext -t es2020 main.tsx', () => {
+    process.on('exit', function () {
+      spawn('node', ['main.js'], {
+        cwd: process.cwd(),
+        detached: true,
+      })
     })
+    process.exit()
   })
-  process.exit()
 })
 
 httpServer.listen(8083)
