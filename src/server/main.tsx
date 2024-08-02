@@ -21,16 +21,9 @@ const httpServer = createServer(async function (req, res) {
 
   console.log('Reloading repo...')
   execSync('git pull')
-  exec('tsc -m nodenext -t es2020 main.tsx', () => {
-    console.log('Recompiling server...')
-    process.on('exit', function () {
-      spawn('node', ['main.js'], {
-        cwd: process.cwd(),
-      })
-    })
-    console.log('Reloading...')
-    process.exit()
-  })
+  res.writeHead(200)
+  res.end('reloading')
+  exec('tsc -m nodenext -t es2020 main.tsx')
 })
 
 httpServer.listen(8083)
