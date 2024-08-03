@@ -11,6 +11,8 @@ export function send(data: any) {
   socket!.send(JSON.stringify(data))
 }
 
+let connectTimeout: any = null
+
 export function connect(callback: (msg: any) => void, channel?: string) {
   if (!channel) {
     return
@@ -29,7 +31,10 @@ export function connect(callback: (msg: any) => void, channel?: string) {
   }
 
   localSocket.onclose = (e) => {
-    setTimeout(() => {
+    if (connectTimeout) {
+      clearTimeout(connectTimeout)
+    }
+    connectTimeout = setTimeout(() => {
       connect(callback, channel)
     }, 1000)
   }
