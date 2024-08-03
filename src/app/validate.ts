@@ -1,4 +1,3 @@
-import { atomStore, checkMissionsAtom } from './atoms'
 import {
   CardValue,
   getNumber,
@@ -14,11 +13,6 @@ import { findWinner } from './utils'
 export const COLOR_SUITS: Suit[] = ['B', 'P', 'Y', 'G']
 
 export function updateMissionStatuses(gameState: GameState) {
-  const shouldCheckMissions = atomStore.get(checkMissionsAtom)
-  if (!shouldCheckMissions) {
-    return
-  }
-
   gameState.players.forEach((player) => {
     const missionValidator = new MissionValidator(gameState, player)
     player.missions.forEach((mission) => {
@@ -38,6 +32,7 @@ export class MissionValidator {
   private playedTricks: Trick[]
   private wonTricks: Trick[]
   private lostTricks: Trick[]
+  private wonIndices: number[]
 
   private playedCards: CardValue[]
   private wonCards: CardValue[]
@@ -54,10 +49,17 @@ export class MissionValidator {
     this.playedTricks = gameState.players.flatMap((p) => p.tricks)
     this.wonTricks = player.tricks
     this.lostTricks = this.otherPlayers.flatMap((p) => p.tricks)
+    this.wonIndices = player.tricks.map(({ index }) => index)
 
-    this.playedCards = this.playedTricks.flat().map(({ card }) => card)
-    this.wonCards = this.wonTricks.flat().map(({ card }) => card)
-    this.lostCards = this.lostTricks.flat().map(({ card }) => card)
+    this.playedCards = this.playedTricks
+      .flatMap(({ cards }) => cards)
+      .map(({ card }) => card)
+    this.wonCards = this.wonTricks
+      .flatMap(({ cards }) => cards)
+      .map(({ card }) => card)
+    this.lostCards = this.lostTricks
+      .flatMap(({ cards }) => cards)
+      .map(({ card }) => card)
 
     const _captain = gameState.players.find(
       (p: Player) => p.seat === gameState.captainSeat,
@@ -153,20 +155,33 @@ export class MissionValidator {
       })
     }
     if (mission.numTricks !== undefined) {
-      // TODO: implement trick order
       return this.isGameOver() && this.wonTricks.length === mission.numTricks
     }
     if (mission.firstNTricks) {
-      // TODO: implement trick order
+      // I will win the first {firstNTricks} tricks
+      for (let i = 0; i < mission.firstNTricks; i++) {
+        if (this.wonIndices[i] !== i) {
+          return false
+        }
+      }
+
+      return true
     }
     if (mission.noneOfTheFirst) {
-      // TODO: implement trick order
+      // I will win none of the first {noneOfTheFirst} tricks
+      if (this.playedTricks.length < mission.noneOfTheFirst) {
+        return false
+      }
+
+      return this.wonIndices.every((n) => n >= mission.noneOfTheFirst!)
     }
     if (mission.nInARow) {
-      // TODO: implement trick order
+      // I will win {nInARow} tricks in a row
+      return this.wonNInARow(mission.nInARow, false)
     }
     if (mission.notNInARow) {
-      // TODO: implement trick order
+      // I will never win {notNInARow} tricks in a row
+      return this.wonNInARow(mission.notNInARow, true)
     }
     if (mission.notOpenWith) {
       // I will not open a trick with {notOpenWith}
@@ -191,13 +206,18 @@ export class MissionValidator {
       const matchesMissionParity = (x: number) =>
         x % 2 === (mission.oddOrEven === 'odd' ? 1 : 0)
       return this.wonTricks.some((trick) =>
-        trick.every(
+        trick.cards.every(
           ({ card }) => !isSub(card) && matchesMissionParity(getNumber(card)),
         ),
       )
     }
     if (mission.finalTrickCapture) {
-      // TODO: implement trick order
+      // I win win the last trick
+      const finalTrick = this.wonTricks[this.wonTricks.length - 1]
+      return (
+        finalTrick.index + 1 === this.gameState.totalTricks &&
+        this.trickContainsCard(finalTrick, mission.finalTrickCapture)
+      )
     }
     if (mission.relativeToCaptain) {
       // I will win more/fewer/as many tricks as the captain
@@ -244,11 +264,11 @@ export class MissionValidator {
       // I will win a trick where all cards are greater/less than {lessOrGreater}
       const { value, lessOrGreater } = mission.allCardsGreaterOrLessThan
       const fulfillsCompare = (card: CardValue) =>
-        lessOrGreater === 'greater'
+        lessOrGreater === '>'
           ? getNumber(card) > value
           : getNumber(card) < value
       return this.wonTricks.some((trick) =>
-        trick.every(({ card }) => !isSub(card) && fulfillsCompare(card)),
+        trick.cards.every(({ card }) => !isSub(card) && fulfillsCompare(card)),
       )
     }
     if (mission.totalLessThan || mission.totalGreaterThan) {
@@ -268,7 +288,7 @@ export class MissionValidator {
     if (mission.equalInTrick) {
       // In one trick, I will win equal amounts of {equalInTrick} suits
       const suitCountInTrick = (trick: Trick, suit: SuitWithSubs) =>
-        trick.filter(({ card }) => getSuit(card) === suit).length
+        trick.cards.filter(({ card }) => getSuit(card) === suit).length
       return this.wonTricks.some((trick) => {
         const count1 = suitCountInTrick(trick, mission.equalInTrick![0])
         const count2 = suitCountInTrick(trick, mission.equalInTrick![1])
@@ -305,10 +325,19 @@ export class MissionValidator {
       }
     }
     if (mission.lastNTricks) {
-      // TODO: implement trick order
+      for (let i = 1; i <= mission.lastNTricks; i++) {
+        if (
+          this.wonIndices[this.wonIndices.length - i] !==
+          this.gameState.totalTricks - i
+        ) {
+          return false
+        }
+      }
+
+      return true
     }
-    if (mission.xIsPublic) {
-      // TODO: implement choosing x
+    if (mission.secretX !== undefined) {
+      return this.isGameOver() && this.wonTricks.length === mission.secretX
     }
     console.warn('unhandled mission', mission)
     return false
@@ -318,18 +347,21 @@ export class MissionValidator {
   private failed(mission: Mission): boolean {
     if (mission.willWin) {
       // I will win {willWin} (and not {wontWinCards})
-      return (
+      if (
         mission.willWin.some((card) => this.lostCard(card)) ||
         !!mission.wontWinCards?.some((card) => this.wonCard(card))
-      )
+      ) {
+        return true
+      }
     }
     if (mission.wontWinNumbers) {
       // I will win no {wontWinNumbers}
-      return mission.wontWinNumbers.some((n) => this.wonNumber(n))
+      if (mission.wontWinNumbers.some((n) => this.wonNumber(n))) return true
     }
     if (mission.wontWinColors) {
       // I will win no {wontWinColors}
-      return mission.wontWinColors.some((color) => this.wonSuit(color))
+      if (mission.wontWinColors.some((color) => this.wonSuit(color)))
+        return true
     }
     if (mission.willWinWith) {
       // I will win with a {with} / I will win a {capturing} with {with}
@@ -337,11 +369,11 @@ export class MissionValidator {
       if (toCapture && this.playedAllCardsForNumber(toCapture)) {
         return true
       }
-      return this.playedAllCardsForNumber(winWith)
+      if (this.playedAllCardsForNumber(winWith)) return true
     }
     if (mission.willWinWithSub) {
       // I will win {willWinWithSub} with a sub
-      return this.playedCard(mission.willWinWithSub)
+      if (this.playedCard(mission.willWinWithSub)) return true
     }
     if (mission.winNumber) {
       // I will win exactly/at least {count} # of {winNumber}
@@ -355,9 +387,10 @@ export class MissionValidator {
       if (exact) {
         // Did we win too many of the card we're supposed to get?
         const numWon = this.numCardsWonForNumber(target)
-        return numWon > countToWin
+        if (numWon > countToWin) {
+          return true
+        }
       }
-      return false
     }
     if (mission.winSuit) {
       // I will win exactly/at least {count} # of cards in the {winSuit}
@@ -371,66 +404,101 @@ export class MissionValidator {
         if (exact) {
           // Did we win too many of the suit we're supposed to get?
           const numWon = this.numCardsWonInSuit(suit)
-          return numWon > countToWin
+          if (numWon > countToWin) {
+            return true
+          }
         }
-        return false
       })
     }
     if (mission.numTricks !== undefined) {
-      const numTricksRemaining =
-        this.gameState.totalTricks - this.playedTricks.length
-      return (
-        this.wonTricks.length > mission.numTricks ||
-        this.wonTricks.length + numTricksRemaining < mission.numTricks
-      )
+      if (!this.canWinNTricks(mission.numTricks)) {
+        return true
+      }
     }
     if (mission.firstNTricks) {
-      // TODO: implement trick order
+      if (this.playedTricks.length > mission.firstNTricks) {
+        return true
+      }
     }
     if (mission.noneOfTheFirst) {
-      // TODO: implement trick order
+      if (this.playedTricks.length > mission.noneOfTheFirst) {
+        return true
+      }
     }
     if (mission.nInARow) {
-      // TODO: implement trick order
+      const remaining = this.gameState.totalTricks - this.playedTricks.length
+
+      let consecutive = 0
+      let targetIndex = this.playedTricks.length - 1
+      for (let i = this.wonIndices.length - 1; i >= 0; i--) {
+        if (this.wonIndices[i] === targetIndex - consecutive) {
+          consecutive++
+        } else {
+          break
+        }
+      }
+
+      if (remaining + consecutive < mission.nInARow) {
+        return true
+      }
     }
     if (mission.notNInARow) {
-      // TODO: implement trick order
+      if (this.wonNInARow(mission.notNInARow, false)) {
+        return true
+      }
     }
     if (mission.notOpenWith) {
       // I will not open a trick with {notOpenWith}
-      return mission.notOpenWith!.some((suit) =>
-        this.playedTricks.some((trick) => this.ledTrickWithSuit(trick, suit)),
-      )
+      if (
+        mission.notOpenWith!.some((suit) =>
+          this.playedTricks.some((trick) => this.ledTrickWithSuit(trick, suit)),
+        )
+      ) {
+        return true
+      }
     }
     if (mission.special === 'allInOne') {
       // I will win all the cards in at least one of the 4 colors
-      return COLOR_SUITS.every((color) => this.numCardsLostInSuit(color) > 0)
+      if (COLOR_SUITS.every((color) => this.numCardsLostInSuit(color) > 0)) {
+        return true
+      }
     }
     if (mission.special === 'oneInAll') {
       // I will win at least one card of each color
-      return COLOR_SUITS.every((color) => this.numCardsLostInSuit(color) === 9)
+      if (COLOR_SUITS.every((color) => this.numCardsLostInSuit(color) === 9)) {
+        return true
+      }
     }
     if (mission.comparison) {
       // In total, I will win {suit1} > {suit2} / In total, I will win {suit1} = {suit2}
       const [suit1, suit2] = mission.comparison.suits
       switch (mission.comparison.comparator) {
         case '>':
-          return (
+          if (
             // even if we win the rest of the cards in suit1, we still have more suit2 cards than suit1 cards
-            this.numCardsWonInSuit(suit2) > 9 - this.numCardsLostInSuit(suit1)
-          )
+            this.numCardsWonInSuit(suit2) >
+            9 - this.numCardsLostInSuit(suit1)
+          ) {
+            return true
+          }
+          break
         case '=':
-          return (
+          if (
             // won too many cards in suit1; even if we won the rest of the cards in suit2, it wouldn't be enough
             this.numCardsWonInSuit(suit1) >
               9 - this.numCardsLostInSuit(suit2) ||
             // won too many cards in suit2; even if we won the rest of the cards in suit1, it wouldn't be enough
             this.numCardsWonInSuit(suit2) > 9 - this.numCardsLostInSuit(suit1)
-          )
+          ) {
+            return true
+          }
+          break
       }
     }
-    if (mission.xIsPublic) {
-      // TODO: implement choosing x
+    if (mission.secretX) {
+      if (!this.canWinNTricks(mission.secretX)) {
+        return true
+      }
     }
     return this.isGameOver()
   }
@@ -447,20 +515,45 @@ export class MissionValidator {
     this.wonCards.some((card) => getSuit(card) === suit)
 
   private wonTrickWithNumber = (trick: Trick, n: number) => {
-    const winner = findWinner(trick).card
+    const winner = findWinner(trick.cards).card
     return !isSub(winner) && getNumber(winner) === n
   }
 
-  private wonTrickWithSub = (trick: Trick) => isSub(findWinner(trick).card)
+  private wonTrickWithSub = (trick: Trick) =>
+    isSub(findWinner(trick.cards).card)
 
   private trickContainsCard = (trick: Trick, _card: CardValue) =>
-    trick.some(({ card }) => card === _card)
+    trick.cards.some(({ card }) => card === _card)
 
   private trickContainsNumber = (trick: Trick, n: number) =>
-    trick.some(({ card }) => !isSub(card) && getNumber(card) === n)
+    trick.cards.some(({ card }) => !isSub(card) && getNumber(card) === n)
+
+  private wonNInARow = (nInARow: number, invert: boolean) => {
+    let consecutive = 1
+    for (let i = 1; i < this.wonIndices.length; i++) {
+      if (this.wonIndices[i - 1] + 1 === this.wonIndices[i]) {
+        consecutive++
+        if (consecutive === nInARow) {
+          return !invert
+        }
+      } else {
+        consecutive = 1
+      }
+    }
+    return invert
+  }
+
+  private canWinNTricks = (n: number) => {
+    const numTricksRemaining =
+      this.gameState.totalTricks - this.playedTricks.length
+    return (
+      this.wonTricks.length <= n &&
+      this.wonTricks.length + numTricksRemaining >= n
+    )
+  }
 
   private trickContainsSub = (trick: Trick) =>
-    trick.some(({ card }) => isSub(card))
+    trick.cards.some(({ card }) => isSub(card))
 
   private allCardsForNumber = (n: number): CardValue[] =>
     COLOR_SUITS.map((suit) => `${suit}${n}` as CardValue)
@@ -500,12 +593,12 @@ export class MissionValidator {
     this.allCardsForNumber(n).every(this.lostCard)
 
   private ledTrickWithSuit = (trick: Trick, suit: SuitWithSubs) => {
-    const lead = trick[0]
+    const lead = trick.cards[0]
     return lead.position === this.player.seat && getSuit(lead.card) === suit
   }
 
   private sumOfTrick = (trick: Trick) => {
-    return trick
+    return trick.cards
       .map(({ card }) => getNumber(card))
       .reduce((partialSum, a) => partialSum + a, 0)
   }

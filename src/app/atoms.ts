@@ -43,8 +43,14 @@ export const gameStateAtom = atom<GameState>({
     cloneEmptyPlayer('seat4'),
     cloneEmptyPlayer('seat5'),
   ],
-  activeTrick: [],
-  previousTrick: [],
+  activeTrick: {
+    cards: [],
+    index: 0,
+  },
+  previousTrick: {
+    cards: [],
+    index: -1,
+  },
   numPlayers: 0,
   captainSeat: 'seat1',
   missions: [],
@@ -55,8 +61,3 @@ export const gameStateAtom = atom<GameState>({
 
 let name = getLocalStorage('name') || ''
 export const nameAtom = atom(name)
-
-// try mission checking features
-export const checkMissionsAtom = atom<boolean>((get) =>
-  get(nameAtom).includes('🐛'),
-)

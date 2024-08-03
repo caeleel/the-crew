@@ -1,6 +1,4 @@
-import { useAtomValue } from 'jotai'
 import { Card, CardNumber, CardValue, Hand, Suit, SuitWithSubs } from './cards'
-import { checkMissionsAtom } from './atoms'
 
 type Comparator = 'more' | 'fewer' | 'as many' | 'moreCombined'
 type PlayerNumArray = [number, number, number]
@@ -23,7 +21,7 @@ export interface Mission {
   willWinWithSub?: CardValue
   allCardsGreaterOrLessThan?: {
     value: number
-    lessOrGreater: 'greater' | 'less'
+    lessOrGreater: '>' | '<'
   }
   totalGreaterThan?: PlayerNumArray
   totalLessThan?: PlayerNumArray
@@ -32,6 +30,8 @@ export interface Mission {
   firstNTricks?: number
   numTricks?: number
   xIsPublic?: boolean
+  x?: number
+  secretX?: number
   nInARow?: number
   notNInARow?: number
   relativeToOthers?: Comparator
@@ -114,12 +114,12 @@ export const missions: Mission[] = [
   {
     id: '53',
     points: [2, 3, 3],
-    allCardsGreaterOrLessThan: { lessOrGreater: 'less', value: 7 },
+    allCardsGreaterOrLessThan: { lessOrGreater: '<', value: 7 },
   },
   {
     id: '52',
     points: [2, 3, 4],
-    allCardsGreaterOrLessThan: { lessOrGreater: 'greater', value: 5 },
+    allCardsGreaterOrLessThan: { lessOrGreater: '>', value: 5 },
   },
   { id: '51', points: [2, 2, 3], relativeToCaptain: 'more' },
   { id: '50', points: [2, 2, 2], relativeToCaptain: 'fewer' },
@@ -248,7 +248,7 @@ export const missions: Mission[] = [
 ] as const
 
 function MissionMessage({ text }: { text: string }) {
-  return <div>{text}</div>
+  return <span>{text}</span>
 }
 
 function MissionInner({
@@ -341,12 +341,14 @@ function MissionInner({
         <MissionMessage
           text={`I will win ${mission.winNumber.exact ? 'exactly' : 'at least'}`}
         />
-        <Card
-          card={`B${mission.winNumber.target}` as CardValue}
-          showNumber
-          multi
-          multiplier={mission.winNumber.count}
-        />
+        <div className="px-2">
+          <Card
+            card={`B${mission.winNumber.target}` as CardValue}
+            showNumber
+            multi
+            multiplier={mission.winNumber.count}
+          />
+        </div>
       </>
     )
   }
@@ -356,7 +358,7 @@ function MissionInner({
         <MissionMessage
           text={`I will win ${mission.winSuit[0].exact ? 'exactly' : 'at least'}`}
         />
-        <div className="flex gap-4">
+        <div className="flex gap-4 px-2">
           {mission.winSuit.map((win) => (
             <Card
               key={win.suit}
@@ -439,7 +441,7 @@ function MissionInner({
   if (mission.special === 'oneInAll') {
     return (
       <>
-        <MissionMessage text={'I will win at least one card of each color'} />
+        <MissionMessage text={'I will win at least 1 card of each color'} />
         <Hand hand={['B1', 'G1', 'Y1', 'P1']} />
       </>
     )
@@ -493,12 +495,13 @@ function MissionInner({
   }
   if (mission.allCardsGreaterOrLessThan) {
     return (
-      <>
+      <div className="inline-block">
         <MissionMessage
-          text={`I will win a trick where all cards are not submarines and also ${mission.allCardsGreaterOrLessThan.lessOrGreater} than `}
+          text={`I will win a trick where all cards are ${mission.allCardsGreaterOrLessThan.lessOrGreater} `}
         />
         <CardNumber n={mission.allCardsGreaterOrLessThan.value} />
-      </>
+        <MissionMessage text="(no subs)" />
+      </div>
     )
   }
   if (mission.totalLessThan) {
@@ -510,18 +513,19 @@ function MissionInner({
       )
     }
     return (
-      <>
-        <MissionMessage text="I will win a trick without subs and with total value less than" />
+      <div className="inline-block">
+        <MissionMessage text="I will win a trick totalling less than" />
         <CardNumber n={mission.totalLessThan[numPlayers - 3]} />
-      </>
+        <MissionMessage text="(no subs)" />
+      </div>
     )
   }
   if (mission.totalGreaterThan) {
     return (
-      <>
+      <div className="inline-block">
         <MissionMessage text="I will win a trick with total value greater than" />
         <CardNumber n={mission.totalGreaterThan[numPlayers - 3]} />
-      </>
+      </div>
     )
   }
   if (mission.equalInTrick) {
@@ -557,7 +561,7 @@ function MissionInner({
   if (mission.xIsPublic !== undefined) {
     return (
       <MissionMessage
-        text={`I will win exactly X tricks (${mission.xIsPublic ? 'public' : 'secret'})`}
+        text={`I will win exactly ${mission.x === undefined ? 'X' : mission.x} tricks (${mission.xIsPublic ? 'public' : 'secret'})`}
       />
     )
   }
@@ -569,30 +573,24 @@ export function MissionCard({
   mission,
   numPlayers,
   isActivePlayer,
+  showCheckbox,
 }: {
   mission: Mission
   numPlayers: number
   isActivePlayer?: boolean
+  showCheckbox?: boolean
 }) {
-  const showStatus = useAtomValue(checkMissionsAtom)
-
-  const bgColor = showStatus && mission.status ? 'bg-gray-200' : 'bg-sky-200'
   const status =
-    mission.status === 'pass' ? '✅' : mission.status === 'fail' ? '😢' : null
+    mission.status === 'pass' ? '✅' : mission.status === 'fail' ? '😢' : '⬜'
 
   return (
     <div
-      className={`${isActivePlayer ? 'hover:border-emerald-200' : ''} border-2 rounded-md border-white h-32 p-2 ${bgColor} flex flex-col relative justify-center drop-shadow-md`}
-      style={{ fontSize: '10px', width: '104px' }}
+      className={`${isActivePlayer ? 'hover:bg-gray-200' : ''} py-2 ${showCheckbox ? 'pr-4' : 'px-4'} flex`}
     >
-      <div className="flex flex-col items-center gap-2 font-bold select-none">
+      <div className="flex items-center gap-2 select-none text-sm">
+        {showCheckbox && <div>{status}</div>}
         <MissionInner mission={mission} numPlayers={numPlayers} />
       </div>
-      {showStatus && (
-        <div className="absolute top-0 right-0 text-white text-lg p-1">
-          {status}
-        </div>
-      )}
     </div>
   )
 }

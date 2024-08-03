@@ -134,7 +134,7 @@ export function SignalButton({
 
 export function CardNumber({ n }: { n: number }) {
   return (
-    <div className="border-2 rounded-sm border-white text-white text-xs font-black drop-shadow">
+    <div className="inline-block border-2 rounded-sm border-white text-white text-xs font-black drop-shadow mr-2 ml-1">
       <div className="w-5 h-5 flex items-center justify-center bg-amber-500">
         <div>{n}</div>
       </div>

@@ -16,6 +16,7 @@ interface DraftMove {
   type: 'draft'
   guid: string
   id: string
+  x?: number
 }
 
 interface EmoteMove {
@@ -60,6 +61,7 @@ export function parseMove(move: string): Move | null {
         type: 'draft',
         guid,
         id: parts[2],
+        x: parts[3] ? Number(parts[3]) : undefined,
       }
     default:
       return null

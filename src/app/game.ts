@@ -8,7 +8,10 @@ export interface CardWithPosition {
   position: SeatKey
 }
 
-export type Trick = CardWithPosition[]
+export interface Trick {
+  cards: CardWithPosition[]
+  index: number
+}
 
 export interface Player {
   name: string

@@ -123,7 +123,7 @@ function PlayingSeat({ player }: { player: Player }) {
     return null
   }
 
-  const leadCard = gameState.activeTrick[0]?.card || null
+  const leadCard = gameState.activeTrick.cards[0]?.card || null
   let hasSuit = false
   if (leadCard) {
     hasSuit = player.hand.some((card) => card[0] === leadCard[0])
@@ -228,18 +228,19 @@ function PlayingSeat({ player }: { player: Player }) {
           </div>
         )}
       </div>
-      <div className="flex gap-2">
+      <div>
         {player.missions.map((mission) => (
           <MissionCard
             key={mission.id}
             mission={mission}
             numPlayers={gameState.numPlayers}
+            showCheckbox
           />
         ))}
       </div>
       <div className="flex gap-6 flex-wrap">
         {player.tricks.map((trick, i) => (
-          <Hand key={i} hand={trick.map((c) => c.card)} showNumber />
+          <Hand key={i} hand={trick.cards.map((c) => c.card)} showNumber />
         ))}
       </div>
     </div>
@@ -272,18 +273,44 @@ function MissionPicker({
   const passesRemaining = me?.passesRemaining || 0
 
   return (
-    <div className="flex flex-col justify-center gap-4 w-full">
-      <NextGameButton />
-      <div className="flex gap-4 flex-wrap p-2 justify-center">
+    <div className="w-full">
+      <GameHeader />
+      <div className="px-2 pt-2 justify-center">
         {gameState.missions.map((mission) => (
           <div
             key={mission.id}
             onClick={() => {
               if (isActivePlayer) {
-                send({
-                  type: 'move',
-                  move: `d:${mission.id}`,
-                })
+                if (mission.xIsPublic !== undefined) {
+                  let val: number | null = null
+                  const valStr = prompt('Choose an X')
+                  if (valStr) {
+                    if (
+                      !isNaN(Number(valStr)) &&
+                      !valStr.includes('-') &&
+                      !valStr.includes('.')
+                    ) {
+                      val = Number(valStr)
+                    }
+                  }
+                  if (val === null) {
+                    if (valStr !== null) {
+                      alert(
+                        `Invalid X: ${valStr}, re-select mission to try again`,
+                      )
+                    }
+                    return
+                  }
+                  send({
+                    type: 'move',
+                    move: `d:${mission.id}:${val}`,
+                  })
+                } else {
+                  send({
+                    type: 'move',
+                    move: `d:${mission.id}`,
+                  })
+                }
               }
             }}
           >
@@ -295,7 +322,7 @@ function MissionPicker({
           </div>
         ))}
       </div>
-      <div className="px-5">
+      <div className="px-2 absolute bottom-2 w-full">
         <Button
           full
           disabled={passesRemaining === 0 || !isActivePlayer}
@@ -313,9 +340,12 @@ function MissionPicker({
   )
 }
 
-function NextGameButton() {
+function GameHeader() {
+  const serverState = useAtomValue(serverStateAtom)
+
   return (
-    <div className="absolute place-self-center top-2">
+    <div className="flex absolute justify-between w-full top-2 px-2 items-center">
+      <div className="px-3">Target: {serverState.meta.target}</div>
       <Button
         onClick={() => {
           if (confirm('Are you sure you want to end the game?')) {
@@ -348,7 +378,7 @@ function ActiveTrick({
 
   return (
     <>
-      {<NextGameButton />}
+      {<GameHeader />}
       {trick.map((card) => (
         <div
           key={card.card}
@@ -382,11 +412,14 @@ function Table() {
       return <MissionPicker gameState={gameState} serverState={serverState} />
     }
 
-    const trick = gameState.activeTrick.length
+    const trick = gameState.activeTrick.cards.length
       ? gameState.activeTrick
       : gameState.previousTrick
     return (
-      <ActiveTrick trick={trick} faded={gameState.activeTrick.length === 0} />
+      <ActiveTrick
+        trick={trick.cards}
+        faded={gameState.activeTrick.cards.length === 0}
+      />
     )
   }
 
@@ -508,7 +541,13 @@ function applyMove(
       return
     }
 
-    const mission = gameState.missions.splice(missionIdx, 1)[0]
+    const mission = { ...gameState.missions.splice(missionIdx, 1)[0] }
+    if (move.x) {
+      mission.secretX = move.x
+      if (mission.xIsPublic || activePlayer.guid === guid) {
+        mission.x = move.x
+      }
+    }
     activePlayer.missions.push(mission)
     if (gameState.missions.length) {
       rotatePlayer()
@@ -521,7 +560,7 @@ function applyMove(
   }
 
   if (move.type === 'hint') {
-    if (gameState.activeTrick.length) {
+    if (gameState.activeTrick.index >= 0) {
       pendingHints[move.guid] = move.hint
       return
     }
@@ -541,8 +580,8 @@ function applyMove(
   }
 
   if (move.type === 'play') {
-    gameState.previousTrick = []
-    gameState.activeTrick.push({
+    gameState.previousTrick.cards = []
+    gameState.activeTrick.cards.push({
       card: move.card,
       position: activePlayer.seat,
     })
@@ -551,13 +590,16 @@ function applyMove(
       activePlayer.hint.played = true
     }
 
-    if (gameState.activeTrick.length === gameState.numPlayers) {
-      const winnerCard = findWinner(gameState.activeTrick)
+    if (gameState.activeTrick.cards.length === gameState.numPlayers) {
+      const winnerCard = findWinner(gameState.activeTrick.cards)
       const winnerIdx = seatToIdx(winnerCard.position)
       const winner = gameState.players[winnerIdx]
       winner.tricks.push(gameState.activeTrick)
-      gameState.previousTrick = gameState.activeTrick
-      gameState.activeTrick = []
+      gameState.previousTrick = { ...gameState.activeTrick }
+      gameState.activeTrick = {
+        cards: [],
+        index: gameState.activeTrick.index + 1,
+      }
       gameState.turnIdx = winnerIdx
       gameState.whoseTurn = winner.seat
       flushMoveQueue(gameState, serverState)
@@ -581,8 +623,14 @@ function initializeGameState(gameState: GameState) {
   const totalTricks = Math.floor(cards.length / activeSeats.length)
   const players: Player[] = []
 
-  gameState.activeTrick = []
-  gameState.previousTrick = []
+  gameState.activeTrick = {
+    cards: [],
+    index: 0,
+  }
+  gameState.previousTrick = {
+    cards: [],
+    index: -1,
+  }
   gameState.totalTricks = totalTricks
   gameState.missions = allocateMissions(shuffledMissions, activeSeats.length)
   gameState.players = players
