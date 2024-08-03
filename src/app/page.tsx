@@ -35,6 +35,7 @@ import {
 import { Button } from './button'
 import { findWinner } from './utils'
 import { updateMissionStatuses } from './validate'
+import { signalType } from './hint'
 
 let moves: Move[] = []
 const slotStyle = {
@@ -131,37 +132,11 @@ function PlayingSeat({ player }: { player: Player }) {
 
   const canSignal = isMe && !player.hint && !gameState.missions.length
 
-  const signalType = (card: CardValue) => {
-    const suit = card[0]
-
-    let isSmallest = true
-    let isBiggest = true
-    let isOnly = true
-
-    for (const c of player.hand) {
-      if (c === card) continue
-
-      if (c[0] === suit) {
-        isOnly = false
-        if (c > card) {
-          isBiggest = false
-        } else {
-          isSmallest = false
-        }
-      }
-    }
-
-    if (isOnly) return 'only'
-    else if (isBiggest) return 'top'
-    else if (isSmallest) return 'bottom'
-    else return null
-  }
-
   const canUseCard = (card: CardValue) => {
     if (signaling) {
       if (card[0] === 's') return false
 
-      return !!signalType(card)
+      return !!signalType(card, player.hand)
     }
 
     if (!isActivePlayer) {
@@ -205,7 +180,7 @@ function PlayingSeat({ player }: { player: Player }) {
           onClick={(card) => {
             if (canUseCard(card)) {
               if (signaling) {
-                const type = signalType(card)!
+                const type = signalType(card, player.hand)!
                 send({
                   type: 'move',
                   move: `h:${card}:${type}`,
@@ -352,7 +327,7 @@ function GameHeader() {
           <Button
             onClick={() => {
               const ok = confirm(
-                'Are you sure you want to undo the hand? This can only be used once per game',
+                'Are you sure you want to undo the trick? This can only be used once per game',
               )
               if (ok) {
                 send({
@@ -367,7 +342,7 @@ function GameHeader() {
                 gameState.activeTrick.cards.length === 0)
             }
           >
-            Undo hand
+            {gameState.undoUsed ? 'Undo used' : 'Undo trick'}
           </Button>
         )}
         <Button
@@ -518,7 +493,6 @@ function flushMoveQueue(gameState: GameState, serverState: ServerGameState) {
   for (const guid of Object.keys(pendingHints)) {
     const hint = pendingHints[guid]
     applyMove({ type: 'hint', guid, hint }, gameState, serverState)
-    console.log('resulting game state', { gameState, serverState })
   }
   pendingHints = {}
 }
@@ -586,7 +560,7 @@ function applyMove(
   }
 
   if (move.type === 'hint') {
-    if (gameState.activeTrick.index >= 0) {
+    if (gameState.activeTrick.cards.length > 0) {
       pendingHints[move.guid] = move.hint
       return
     }
@@ -597,8 +571,11 @@ function applyMove(
       return
     }
 
-    if (move.hint && !player.hand.includes(move.hint.card)) {
-      return
+    if (move.hint) {
+      if (!player.hand.includes(move.hint.card)) return
+      const type = signalType(move.hint.card, player.hand)
+      if (!type) return
+      move.hint.type = type
     }
 
     player.hint = move.hint

@@ -35,7 +35,7 @@ export function connect(callback: (msg: any) => void, channel?: string) {
       } else {
         localSocket.send(JSON.stringify({ type: 'ping' }))
       }
-    }, 1000)
+    }, 10000)
   }
 
   localSocket.onclose = (e) => {
