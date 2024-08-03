@@ -72,6 +72,14 @@ const suitToBg = {
   s: 'bg-black',
 }
 
+const suitToImg = {
+  Y: 'yellow.png',
+  P: 'pink.png',
+  G: 'green.png',
+  B: 'blue.png',
+  s: 'black.png',
+}
+
 export function Signal({ hint }: { hint: Hint | null }) {
   if (!hint) {
     return <div>🟢</div>
@@ -170,7 +178,11 @@ export function Card({
     >
       {!multi && (
         <div
-          className={`${showBack ? 'bg-sky-700' : suitToBg[suit]} ${cardSize} flex items-center justify-center`}
+          className={`${showBack ? 'bg-sky-700' : big ? '' : suitToBg[suit]} ${cardSize} flex items-center justify-center bg-center`}
+          style={{
+            backgroundImage: big ? `url(/${suitToImg[suit]})` : undefined,
+            backgroundSize: '72px 100px',
+          }}
         />
       )}
       {multi && (
