@@ -746,6 +746,9 @@ function initializeGameState(gameState: GameState) {
 function handleMsg(msg: any) {
   console.log(`Received msg type: ${msg.type}`)
   switch (msg.type) {
+    case 'pong': {
+      break
+    }
     case 'game': {
       const rawState = msg.gameState
       const {

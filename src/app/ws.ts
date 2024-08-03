@@ -28,9 +28,18 @@ export function connect(callback: (msg: any) => void, channel?: string) {
         guid,
       }),
     )
+
+    const keepalive = setInterval(() => {
+      if (localSocket.readyState !== localSocket.OPEN) {
+        clearInterval(keepalive)
+      } else {
+        localSocket.send(JSON.stringify({ type: 'ping' }))
+      }
+    }, 1000)
   }
 
   localSocket.onclose = (e) => {
+    console.log('closing socket:', e)
     if (connectTimeout) {
       clearTimeout(connectTimeout)
     }
@@ -40,6 +49,7 @@ export function connect(callback: (msg: any) => void, channel?: string) {
   }
 
   localSocket.onerror = (e) => {
+    console.log('error on socket:', e)
     localSocket!.close()
   }
 

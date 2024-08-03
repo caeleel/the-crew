@@ -170,6 +170,12 @@ wss.on('connection', async (ws) => {
     }
 
     switch (msgJson.type) {
+      case 'ping': {
+        send(ws, {
+          type: 'pong',
+        })
+        break
+      }
       case 'subscribe': {
         const subscribeMsg = msgJson as SubscribeMsg
         if (!subscribeMsg.channel || !subscribeMsg.channel) {
