@@ -342,21 +342,46 @@ function MissionPicker({
 
 function GameHeader() {
   const serverState = useAtomValue(serverStateAtom)
+  const gameState = useAtomValue(gameStateAtom)
 
   return (
     <div className="flex absolute justify-between w-full top-2 px-2 items-center">
       <div className="px-3">Target: {serverState.meta.target}</div>
-      <Button
-        onClick={() => {
-          if (confirm('Are you sure you want to end the game?')) {
-            send({
-              type: 'reset',
-            })
-          }
-        }}
-      >
-        Next game
-      </Button>
+      <div className="flex gap-2">
+        {serverState.status === 'started' && (
+          <Button
+            onClick={() => {
+              const ok = confirm(
+                'Are you sure you want to undo the hand? This can only be used once per game',
+              )
+              if (ok) {
+                send({
+                  type: 'move',
+                  move: 'u',
+                })
+              }
+            }}
+            disabled={
+              gameState.undoUsed ||
+              (gameState.previousTrick.index < 0 &&
+                gameState.activeTrick.cards.length === 0)
+            }
+          >
+            Undo hand
+          </Button>
+        )}
+        <Button
+          onClick={() => {
+            if (confirm('Are you sure you want to end the game?')) {
+              send({
+                type: 'reset',
+              })
+            }
+          }}
+        >
+          Next game
+        </Button>
+      </div>
     </div>
   )
 }
@@ -502,6 +527,7 @@ function applyMove(
   move: Move,
   gameState: GameState,
   serverState: ServerGameState,
+  playsUntilUndo?: number,
 ) {
   if (serverState.status !== 'started') {
     return
@@ -580,7 +606,14 @@ function applyMove(
   }
 
   if (move.type === 'play') {
-    gameState.previousTrick.cards = []
+    if (playsUntilUndo !== undefined) {
+      if (gameState.activeTrick.cards.length === 0) {
+        if (playsUntilUndo <= gameState.numPlayers) {
+          return
+        }
+      }
+    }
+
     gameState.activeTrick.cards.push({
       card: move.card,
       position: activePlayer.seat,
@@ -607,6 +640,11 @@ function applyMove(
     } else {
       rotatePlayer()
     }
+    return
+  }
+
+  if (move.type === 'undo') {
+    gameState.undoUsed = true
     return
   }
 }
@@ -681,6 +719,28 @@ function initializeGameState(gameState: GameState) {
   }
 
   console.log('game-state', gameState)
+
+  const playsUntilUndo = moves.map(() => 0)
+  let playCounter = gameState.numPlayers + 1
+  for (let i = moves.length - 1; i >= 0; i--) {
+    const move = moves[i]
+    if (move.type === 'undo') {
+      playCounter = 0
+    }
+
+    playsUntilUndo[i] = playCounter
+
+    if (move.type === 'play') {
+      playCounter++
+    }
+  }
+
+  for (let i = 0; i < moves.length; i++) {
+    const move = moves[i]
+    applyMove(move, gameState, serverState, playsUntilUndo[i])
+  }
+
+  atomStore.set(gameStateAtom, gameState)
 }
 
 function handleMsg(msg: any) {
@@ -732,12 +792,7 @@ function handleMsg(msg: any) {
 
       if (needsInitialize) {
         initializeGameState(gameState)
-        for (const move of moves) {
-          applyMove(move, gameState, newServerState)
-        }
       }
-
-      atomStore.set(gameStateAtom, gameState)
       break
     }
     case 'moves': {
@@ -749,8 +804,13 @@ function handleMsg(msg: any) {
       if (parsed) {
         moves.push(parsed)
         const gameState = { ...atomStore.get(gameStateAtom) }
-        applyMove(parsed, gameState, atomStore.get(serverStateAtom))
-        atomStore.set(gameStateAtom, gameState)
+
+        if (parsed.type === 'undo') {
+          initializeGameState(gameState)
+        } else {
+          applyMove(parsed, gameState, atomStore.get(serverStateAtom))
+          atomStore.set(gameStateAtom, gameState)
+        }
       }
     }
   }

@@ -35,6 +35,7 @@ export interface GameState {
   numPlayers: number
   whoseTurn: SeatKey
   turnIdx: number
+  undoUsed: boolean
 }
 
 export interface ServerGameState {

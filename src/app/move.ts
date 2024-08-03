@@ -25,7 +25,12 @@ interface EmoteMove {
   guid: string
 }
 
-export type Move = PlayMove | HintMove | DraftMove | EmoteMove
+interface UndoMove {
+  type: 'undo'
+  guid: string
+}
+
+export type Move = PlayMove | HintMove | DraftMove | EmoteMove | UndoMove
 
 export function parseMove(move: string): Move | null {
   const parts = move.split(':')
@@ -62,6 +67,11 @@ export function parseMove(move: string): Move | null {
         guid,
         id: parts[2],
         x: parts[3] ? Number(parts[3]) : undefined,
+      }
+    case 'u':
+      return {
+        type: 'undo',
+        guid,
       }
     default:
       return null

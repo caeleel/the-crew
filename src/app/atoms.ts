@@ -57,6 +57,7 @@ export const gameStateAtom = atom<GameState>({
   whoseTurn: 'seat1',
   turnIdx: 0,
   totalTricks: 0,
+  undoUsed: false,
 })
 
 let name = getLocalStorage('name') || ''

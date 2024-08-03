@@ -421,7 +421,7 @@ export class MissionValidator {
       }
     }
     if (mission.noneOfTheFirst) {
-      if (this.playedTricks.length > mission.noneOfTheFirst) {
+      if (!this.wonIndices.every((n) => n >= mission.noneOfTheFirst!)) {
         return true
       }
     }
