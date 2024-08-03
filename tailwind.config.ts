@@ -8,7 +8,6 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      '128': '32rem',
       keyframes: {
         fade: {
           '0%': { opacity: '1' },

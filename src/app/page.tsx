@@ -11,7 +11,7 @@ import {
   SignalButton,
 } from './cards'
 import { missions, Mission, MissionCard } from './missions'
-import { HintMove, Move, parseMove } from './move'
+import { applyMove, Move, parseMove, seatToIdx } from './move'
 import { shuffle, setSeeds } from './rand'
 import { Provider, useAtom, useAtomValue } from 'jotai'
 import {
@@ -33,8 +33,6 @@ import {
   cloneEmptyPlayer,
 } from './atoms'
 import { Button } from './button'
-import { findWinner } from './utils'
-import { updateMissionStatuses } from './validate'
 import { signalType } from './hint'
 
 let moves: Move[] = []
@@ -60,57 +58,123 @@ function Slot({
   )
 }
 
-function PreGameSeat({ player }: { player: Player }) {
-  const serverState = useAtomValue(serverStateAtom)
-  const name = useAtomValue(nameAtom)
-
-  if (player.name) {
-    return (
-      <div className="flex flex-col gap-2 items-center">
-        <div className="font-medium">{player.name}</div>
-        {player.guid === guid && (
-          <div>
-            <Button
-              onClick={() => {
-                send({
-                  type: 'leave',
-                  guid,
-                })
-              }}
-            >
-              Leave seat
-            </Button>
-          </div>
-        )}
-      </div>
-    )
+function pickSeat(serverState: ServerGameState) {
+  const available: SeatKey[] = []
+  for (let i = 1; i <= 5; i++) {
+    const seat = `seat${i}` as SeatKey
+    if (!serverState[seat]) {
+      available.push(seat)
+    }
   }
 
-  if (!socket || !guid) {
+  const idx = Math.floor(Math.random() * available.length)
+  return available[idx]
+}
+
+function Lobby() {
+  const serverState = useAtomValue(serverStateAtom)
+  const gameState = useAtomValue(gameStateAtom)
+  const [name, setName] = useAtom(nameAtom)
+
+  if (!guid || !socket) {
     return null
   }
 
-  if (joined(guid, serverState)) {
-    return <div>Empty seat</div>
+  const haveJoined = joined(guid, serverState)
+  const seatToJoin = pickSeat(serverState)
+  const readyToPlay = numJoined(serverState) >= 3
+  const pts = serverState.meta.target || 12
+  const setPts = (pts: number) => {
+    send({
+      type: 'meta',
+      meta: { target: pts },
+    })
+  }
+
+  const join = () => {
+    send({
+      type: 'join',
+      seat: seatToJoin,
+      name,
+    })
   }
 
   return (
-    <Button
-      onClick={() => {
-        send({
-          type: 'join',
-          seat: player.seat,
-          name,
-        })
-      }}
-    >
-      Sit here
-    </Button>
+    <div className="flex flex-col gap-16 items-center">
+      {haveJoined && !readyToPlay && <div>Waiting for more players...</div>}
+      {haveJoined && readyToPlay && (
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={() => {
+              send({
+                type: 'start',
+              })
+            }}
+          >
+            {`Start game (${pts} pts)`}
+          </Button>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => setPts(pts + 1)}>⬆️</Button>
+            <Button disabled={pts < 11} onClick={() => setPts(pts - 1)}>
+              ⬇️
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="flex flex-col gap-2 items-center">
+        <div>Players:</div>
+        <div className="flex flex-col items-center">
+          {gameState.players.map((p) =>
+            p.guid ? (
+              <div
+                className={guid === p.guid ? 'font-bold' : undefined}
+                key={p.guid}
+              >
+                {p.name}
+              </div>
+            ) : undefined,
+          )}
+        </div>
+      </div>
+      {!haveJoined && seatToJoin ? (
+        <div className="flex flex-col gap-3">
+          <input
+            className="text-center h-10"
+            placeholder="Enter your name"
+            value={name}
+            onKeyDown={(e) => {
+              console.log(e.key)
+              if (e.key === 'Enter') {
+                join()
+              }
+            }}
+            onChange={(e) => {
+              const newName = e.target.value
+              setName(newName)
+              setLocalStorage('name', newName)
+            }}
+          />
+          <Button onClick={join}>Join</Button>
+        </div>
+      ) : (
+        <Button
+          onClick={() => {
+            send({
+              type: 'leave',
+              guid,
+            })
+          }}
+        >
+          Leave
+        </Button>
+      )}
+    </div>
   )
 }
 
-function PlayingSeat({ player }: { player: Player }) {
+function Seat({ player }: { player: Player }) {
   const gameState = useAtomValue(gameStateAtom)
+  const serverState = useAtomValue(serverStateAtom)
   const [signaling, setSignaling] = useState(false)
   const [pendingSignal, setPendingSignal] = useState<Hint | null>(null)
 
@@ -120,8 +184,8 @@ function PlayingSeat({ player }: { player: Player }) {
     gameState.whoseTurn === player.seat &&
     gameState.missions.length === 0
 
-  if (!player.name) {
-    return null
+  if (!player.name || serverState.status !== 'started') {
+    return <div style={slotStyle}></div>
   }
 
   const leadCard = gameState.activeTrick.cards[0]?.card || null
@@ -151,87 +215,75 @@ function PlayingSeat({ player }: { player: Player }) {
   }
 
   return (
-    <div className="p-3 flex flex-col gap-4" style={slotStyle}>
-      <div className="flex gap-2 items-center">
-        <div className="font-bold">
-          {player.seat === gameState.captainSeat && '👑'} {player.name}
-        </div>
-        <Signal hint={player.hint || pendingSignal} />
-        {canSignal && (
-          <SignalButton
-            pendingSignal={pendingSignal}
-            signaling={signaling}
-            startSignaling={() => setSignaling(true)}
-            cancelSignal={() => {
-              send({ type: 'move', move: 'h:cancel' })
-              setSignaling(false)
-              setPendingSignal(null)
-            }}
-          />
-        )}
-      </div>
-      <div className="flex flex-col gap-3">
-        <Hand
-          highlight={canUseCard}
-          hand={player.hand}
-          big={isMe}
-          showBack={!isMe}
-          showNumber
-          onClick={(card) => {
-            if (canUseCard(card)) {
-              if (signaling) {
-                const type = signalType(card, player.hand)!
-                send({
-                  type: 'move',
-                  move: `h:${card}:${type}`,
-                })
-                setPendingSignal({ card, type, played: false })
-                setSignaling(false)
-              } else {
-                send({
-                  type: 'move',
-                  move: `p:${card}`,
-                })
-              }
-            }
-          }}
-          indicateUnplayableCards={signaling}
-        />
-        {!!gameState.missions.length && (
-          <div className="h-7 text-slate-400">
-            Pass ({player.passesRemaining} remaining)
+    <Slot highlighted={gameState.whoseTurn === player.seat}>
+      <div className="p-3 flex flex-col gap-4" style={slotStyle}>
+        <div className="flex gap-2 items-center">
+          <div className="font-bold">
+            {player.seat === gameState.captainSeat && '👑'} {player.name}
           </div>
-        )}
-      </div>
-      <div>
-        {player.missions.map((mission) => (
-          <MissionCard
-            key={mission.id}
-            mission={mission}
-            numPlayers={gameState.numPlayers}
-            showCheckbox
+          <Signal hint={player.hint || pendingSignal} />
+          {canSignal && (
+            <SignalButton
+              pendingSignal={pendingSignal}
+              signaling={signaling}
+              startSignaling={() => setSignaling(true)}
+              cancelSignal={() => {
+                send({ type: 'move', move: 'h:cancel' })
+                setSignaling(false)
+                setPendingSignal(null)
+              }}
+            />
+          )}
+        </div>
+        <div className="flex flex-col gap-3">
+          <Hand
+            highlight={canUseCard}
+            hand={player.hand}
+            big={isMe}
+            showBack={!isMe}
+            showNumber
+            onClick={(card) => {
+              if (canUseCard(card)) {
+                if (signaling) {
+                  const type = signalType(card, player.hand)!
+                  send({
+                    type: 'move',
+                    move: `h:${card}:${type}`,
+                  })
+                  setPendingSignal({ card, type, played: false })
+                  setSignaling(false)
+                } else {
+                  send({
+                    type: 'move',
+                    move: `p:${card}`,
+                  })
+                }
+              }
+            }}
+            indicateUnplayableCards={signaling}
           />
-        ))}
+          {!!gameState.missions.length && (
+            <div className="h-7 text-slate-400">
+              Pass ({player.passesRemaining} remaining)
+            </div>
+          )}
+        </div>
+        <div>
+          {player.missions.map((mission) => (
+            <MissionCard
+              key={mission.id}
+              mission={mission}
+              numPlayers={gameState.numPlayers}
+              showCheckbox
+            />
+          ))}
+        </div>
+        <div className="flex gap-6 flex-wrap">
+          {player.tricks.map((trick, i) => (
+            <Hand key={i} hand={trick.cards.map((c) => c.card)} showNumber />
+          ))}
+        </div>
       </div>
-      <div className="flex gap-6 flex-wrap">
-        {player.tricks.map((trick, i) => (
-          <Hand key={i} hand={trick.cards.map((c) => c.card)} showNumber />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function Seat({ player }: { player: Player }) {
-  const serverState = useAtomValue(serverStateAtom)
-  const gameState = useAtomValue(gameStateAtom)
-
-  const started = serverState.status === 'started'
-
-  return (
-    <Slot highlighted={started && gameState.whoseTurn === player.seat}>
-      {!started && <PreGameSeat player={player} />}
-      {started && <PlayingSeat player={player} />}
     </Slot>
   )
 }
@@ -392,16 +444,8 @@ function ActiveTrick({
 }
 
 function Table() {
-  const [name, setName] = useAtom(nameAtom)
   const serverState = useAtomValue(serverStateAtom)
   const gameState = useAtomValue(gameStateAtom)
-  const pts = serverState.meta.target || 12
-  const setPts = (pts: number) => {
-    send({
-      type: 'meta',
-      meta: { target: pts },
-    })
-  }
 
   if (!guid) {
     return null
@@ -423,48 +467,7 @@ function Table() {
     )
   }
 
-  if (joined(guid, serverState)) {
-    if (numJoined(serverState) >= 3) {
-      return (
-        <div className="flex flex-col gap-2">
-          <Button
-            onClick={() => {
-              send({
-                type: 'start',
-              })
-            }}
-          >
-            {`Start game (${pts} pts)`}
-          </Button>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => setPts(pts + 1)}>⬆️</Button>
-            <Button disabled={pts < 11} onClick={() => setPts(pts - 1)}>
-              ⬇️
-            </Button>
-          </div>
-        </div>
-      )
-    }
-
-    return <div>Waiting for more players...</div>
-  }
-
-  return (
-    <input
-      className="text-center border"
-      placeholder="Enter your name"
-      value={name}
-      onChange={(e) => {
-        const newName = e.target.value
-        setName(newName)
-        setLocalStorage('name', newName)
-      }}
-    />
-  )
-}
-
-function seatToIdx(seat: SeatKey): number {
-  return Number(seat[4]) - 1
+  return <Lobby />
 }
 
 function allocateMissions(missions: Mission[], players: number) {
@@ -483,147 +486,6 @@ function allocateMissions(missions: Mission[], players: number) {
   }
 
   return chosen
-}
-
-let pendingHints: {
-  [guid: string]: Hint | null
-} = {}
-
-function flushMoveQueue(gameState: GameState, serverState: ServerGameState) {
-  for (const guid of Object.keys(pendingHints)) {
-    const hint = pendingHints[guid]
-    applyMove({ type: 'hint', guid, hint }, gameState, serverState)
-  }
-  pendingHints = {}
-}
-
-function applyMove(
-  move: Move,
-  gameState: GameState,
-  serverState: ServerGameState,
-  playsUntilUndo?: number,
-) {
-  if (serverState.status !== 'started') {
-    return
-  }
-
-  const activePlayer = gameState.players[gameState.turnIdx]
-  const seatIdx = serverState.startingSeats.indexOf(gameState.whoseTurn)
-  if (seatIdx < 0) {
-    throw new Error('Could not find active seat in seating chart')
-  }
-  const nextSeatIdx = (seatIdx + 1) % gameState.numPlayers
-  const nextSeat = serverState.startingSeats[nextSeatIdx]
-
-  function rotatePlayer() {
-    gameState.whoseTurn = nextSeat
-    gameState.turnIdx = seatToIdx(nextSeat)
-  }
-
-  if (gameState.missions.length) {
-    if (move.type === 'hint') {
-      pendingHints[move.guid] = move.hint
-      return
-    }
-
-    if (move.type !== 'draft') {
-      return
-    }
-
-    if (move.id === 'pass') {
-      activePlayer.passesRemaining--
-      rotatePlayer()
-      return
-    }
-
-    const missionIdx = gameState.missions.findIndex((m) => m.id === move.id)
-    if (missionIdx < 0) {
-      return
-    }
-
-    const mission = { ...gameState.missions.splice(missionIdx, 1)[0] }
-    if (move.x) {
-      mission.secretX = move.x
-      if (mission.xIsPublic || activePlayer.guid === guid) {
-        mission.x = move.x
-      }
-    }
-    activePlayer.missions.push(mission)
-    if (gameState.missions.length) {
-      rotatePlayer()
-    } else {
-      gameState.whoseTurn = gameState.captainSeat
-      gameState.turnIdx = seatToIdx(gameState.captainSeat)
-      flushMoveQueue(gameState, serverState)
-    }
-    return
-  }
-
-  if (move.type === 'hint') {
-    if (gameState.activeTrick.cards.length > 0) {
-      pendingHints[move.guid] = move.hint
-      return
-    }
-
-    const hintGuid = move.guid
-    const player = gameState.players.find((p) => p.guid === hintGuid)
-    if (!player) {
-      return
-    }
-
-    if (move.hint) {
-      if (!player.hand.includes(move.hint.card)) return
-      const type = signalType(move.hint.card, player.hand)
-      if (!type) return
-      move.hint.type = type
-    }
-
-    player.hint = move.hint
-    return
-  }
-
-  if (move.type === 'play') {
-    if (playsUntilUndo !== undefined) {
-      if (gameState.activeTrick.cards.length === 0) {
-        if (playsUntilUndo <= gameState.numPlayers) {
-          return
-        }
-      }
-    }
-
-    gameState.activeTrick.cards.push({
-      card: move.card,
-      position: activePlayer.seat,
-    })
-    activePlayer.hand.splice(activePlayer.hand.indexOf(move.card), 1)
-    if (activePlayer.hint?.card === move.card) {
-      activePlayer.hint.played = true
-    }
-
-    if (gameState.activeTrick.cards.length === gameState.numPlayers) {
-      const winnerCard = findWinner(gameState.activeTrick.cards)
-      const winnerIdx = seatToIdx(winnerCard.position)
-      const winner = gameState.players[winnerIdx]
-      winner.tricks.push(gameState.activeTrick)
-      gameState.previousTrick = { ...gameState.activeTrick }
-      gameState.activeTrick = {
-        cards: [],
-        index: gameState.activeTrick.index + 1,
-      }
-      gameState.turnIdx = winnerIdx
-      gameState.whoseTurn = winner.seat
-      flushMoveQueue(gameState, serverState)
-      updateMissionStatuses(gameState)
-    } else {
-      rotatePlayer()
-    }
-    return
-  }
-
-  if (move.type === 'undo') {
-    gameState.undoUsed = true
-    return
-  }
 }
 
 function initializeGameState(gameState: GameState) {
