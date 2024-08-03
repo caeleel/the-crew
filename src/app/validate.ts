@@ -181,7 +181,7 @@ export class MissionValidator {
     }
     if (mission.notNInARow) {
       // I will never win {notNInARow} tricks in a row
-      return this.wonNInARow(mission.notNInARow, true)
+      return this.wonNInARow(mission.notNInARow, true) && this.isGameOver()
     }
     if (mission.notOpenWith) {
       // I will not open a trick with {notOpenWith}
