@@ -477,7 +477,7 @@ function MissionInner({
   if (mission.relativeToCaptain) {
     return (
       <MissionMessage
-        text={`I will win ${mission.relativeToCaptain} tricks than 👑`}
+        text={`I will win ${mission.relativeToCaptain} tricks ${mission.relativeToCaptain === 'as many' ? 'as' : 'than'} 👑`}
       />
     )
   }
