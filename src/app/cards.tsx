@@ -1,49 +1,5 @@
 import { Button } from './button'
-
-export const cards = [
-  'B1',
-  'B2',
-  'B3',
-  'B4',
-  'B5',
-  'B6',
-  'B7',
-  'B8',
-  'B9',
-  'P1',
-  'P2',
-  'P3',
-  'P4',
-  'P5',
-  'P6',
-  'P7',
-  'P8',
-  'P9',
-  'Y1',
-  'Y2',
-  'Y3',
-  'Y4',
-  'Y5',
-  'Y6',
-  'Y7',
-  'Y8',
-  'Y9',
-  'G1',
-  'G2',
-  'G3',
-  'G4',
-  'G5',
-  'G6',
-  'G7',
-  'G8',
-  'G9',
-  's1',
-  's2',
-  's3',
-  's4', // lowercase to sort last //
-] as const
-
-export type CardValue = (typeof cards)[number]
+import { CardValue, Hint, Suit, SuitWithSubs } from './types'
 
 export function getSuit(cardValue: CardValue): SuitWithSubs {
   return cardValue[0] as Suit
@@ -54,15 +10,6 @@ export function getNumber(cardValue: CardValue): number {
 export function isSub(cardValue: CardValue): boolean {
   return getSuit(cardValue) === 's'
 }
-
-export interface Hint {
-  card: CardValue
-  type: 'top' | 'only' | 'bottom'
-  played: boolean
-}
-
-export type Suit = 'B' | 'P' | 'Y' | 'G'
-export type SuitWithSubs = Suit | 's'
 
 const suitToBg = {
   Y: 'bg-amber-300',

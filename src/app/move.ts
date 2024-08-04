@@ -1,5 +1,4 @@
-import { CardValue, Hint } from './cards'
-import { GameState, SeatKey, ServerGameState } from './game'
+import { GameState, SeatKey, ServerGameState, CardValue, Hint } from './types'
 import { signalType } from './hint'
 import { updateMissionStatuses } from './validate'
 import { findWinner } from './utils'

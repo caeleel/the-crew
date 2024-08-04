@@ -1,41 +1,32 @@
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
-import {
-  Card,
-  cards,
-  CardValue,
-  Hand,
-  Hint,
-  Signal,
-  SignalButton,
-} from './cards'
-import { missions, Mission, MissionCard } from './missions'
-import { applyMove, Move, parseMove, seatToIdx } from './move'
-import { shuffle, setSeeds } from './rand'
+import { Card, Hand, Signal, SignalButton } from './cards'
+import { MissionCard } from './missions'
 import { Provider, useAtom, useAtomValue } from 'jotai'
 import {
   joined,
-  SeatKey,
-  Player,
   numJoined,
-  ServerGameState,
-  GameState,
-  CardWithPosition,
-} from './game'
-import { setLocalStorage } from './local-storage'
-import { socket, send, connect, guid } from './ws'
-import {
+  handleMsg,
   serverStateAtom,
   gameStateAtom,
   nameAtom,
   atomStore,
-  cloneEmptyPlayer,
-} from './atoms'
+} from './game'
+import { setLocalStorage } from './local-storage'
+import { socket, send, connect, guid } from './ws'
 import { Button } from './button'
 import { signalType } from './hint'
+import { pickSeat } from './utils'
+import {
+  CardValue,
+  CardWithPosition,
+  GameState,
+  Hint,
+  Player,
+  ServerGameState,
+} from './types'
 
-let moves: Move[] = []
 const slotStyle = {
   height: '536px',
   width: '384px',
@@ -56,19 +47,6 @@ function Slot({
       {children}
     </div>
   )
-}
-
-function pickSeat(serverState: ServerGameState) {
-  const available: SeatKey[] = []
-  for (let i = 1; i <= 5; i++) {
-    const seat = `seat${i}` as SeatKey
-    if (!serverState[seat]) {
-      available.push(seat)
-    }
-  }
-
-  const idx = Math.floor(Math.random() * available.length)
-  return available[idx]
 }
 
 function Lobby() {
@@ -468,194 +446,6 @@ function Table() {
   }
 
   return <Lobby />
-}
-
-function allocateMissions(missions: Mission[], players: number) {
-  const { target } = atomStore.get(serverStateAtom).meta
-
-  let current = 0
-  const chosen: Mission[] = []
-  let idx = 0
-  while (current < target) {
-    const points = missions[idx].points[players - 3]
-    if (current + points <= target) {
-      chosen.push(missions[idx])
-      current += points
-    }
-    idx++
-  }
-
-  return chosen
-}
-
-function initializeGameState(gameState: GameState) {
-  const serverState = atomStore.get(serverStateAtom)
-  const { seed1, seed2, seed3, seed4 } = serverState
-  setSeeds(seed1, seed2, seed3, seed4)
-
-  const shuffledCards = shuffle(cards)
-  const shuffledMissions = shuffle(missions)
-
-  const activeSeats = serverState.startingSeats
-  const totalTricks = Math.floor(cards.length / activeSeats.length)
-  const players: Player[] = []
-
-  gameState.activeTrick = {
-    cards: [],
-    index: 0,
-  }
-  gameState.previousTrick = {
-    cards: [],
-    index: -1,
-  }
-  gameState.totalTricks = totalTricks
-  gameState.missions = allocateMissions(shuffledMissions, activeSeats.length)
-  gameState.players = players
-  gameState.numPlayers = activeSeats.length
-
-  let cardIdx = 0
-  let captainFound = false
-  for (let i = 1; i <= 5; i++) {
-    const seat = `seat${i}` as SeatKey
-    const [currGuid, name] = serverState[seat].split(':', 2)
-
-    let endIdx = cardIdx + totalTricks
-    const player: Player = {
-      ...cloneEmptyPlayer(seat),
-      name: name || '',
-      idx: i,
-      guid: currGuid,
-      hand: currGuid ? shuffledCards.slice(cardIdx, endIdx) : [],
-    }
-
-    if (player.hand.includes('s4')) {
-      captainFound = true
-      gameState.captainSeat = seat
-      gameState.whoseTurn = seat
-      gameState.turnIdx = i - 1
-
-      if (activeSeats.length === 3) {
-        player.hand.push(shuffledCards[endIdx])
-        endIdx++
-      }
-    }
-
-    if (currGuid) {
-      cardIdx = endIdx
-      player.hand.sort()
-    }
-
-    players.push(player)
-  }
-
-  if (!captainFound) {
-    gameState.captainSeat = serverState.startingSeats[0]
-    gameState.whoseTurn = gameState.captainSeat
-    gameState.turnIdx = seatToIdx(gameState.captainSeat)
-    const captain = gameState.players[gameState.turnIdx]
-    captain.hand.push('s4')
-    console.log('appointed captain', captain)
-  }
-
-  console.log('game-state', gameState)
-
-  const playsUntilUndo = moves.map(() => 0)
-  let playCounter = gameState.numPlayers + 1
-  for (let i = moves.length - 1; i >= 0; i--) {
-    const move = moves[i]
-    if (move.type === 'undo') {
-      playCounter = 0
-    }
-
-    playsUntilUndo[i] = playCounter
-
-    if (move.type === 'play') {
-      playCounter++
-    }
-  }
-
-  for (let i = 0; i < moves.length; i++) {
-    const move = moves[i]
-    applyMove(move, gameState, serverState, playsUntilUndo[i])
-  }
-
-  atomStore.set(gameStateAtom, gameState)
-}
-
-function handleMsg(msg: any) {
-  console.log(`Received msg type: ${msg.type}`)
-  switch (msg.type) {
-    case 'pong': {
-      break
-    }
-    case 'game': {
-      const rawState = msg.gameState
-      const {
-        seed1,
-        seed2,
-        seed3,
-        seed4,
-        status,
-        seat1,
-        seat2,
-        seat3,
-        seat4,
-        seat5,
-      } = rawState
-      const startingSeats =
-        rawState.startingSeats === '' ? [] : rawState.startingSeats.split(',')
-
-      const serverState = atomStore.get(serverStateAtom)
-      const needsInitialize =
-        status === 'started' && serverState.status === 'waiting'
-      const newServerState: ServerGameState = {
-        seed1: Number(seed1),
-        seed2: Number(seed2),
-        seed3: Number(seed3),
-        seed4: Number(seed4),
-        status,
-        seat1,
-        seat2,
-        seat3,
-        seat4,
-        seat5,
-        meta: rawState.meta ? JSON.parse(rawState.meta) : {},
-        startingSeats,
-      }
-      atomStore.set(serverStateAtom, newServerState)
-
-      const gameState = { ...atomStore.get(gameStateAtom) }
-      for (let i = 0; i < 5; i++) {
-        const seatKey = `seat${i + 1}` as SeatKey
-        const [guid, name] = newServerState[seatKey].split(':', 2)
-        gameState.players[i].name = name
-        gameState.players[i].guid = guid
-      }
-
-      if (needsInitialize) {
-        initializeGameState(gameState)
-      }
-      break
-    }
-    case 'moves': {
-      moves = msg.moves.map((msg: string) => parseMove(msg))
-      break
-    }
-    case 'move': {
-      const parsed = parseMove(`${msg.guid}:${msg.move}`)
-      if (parsed) {
-        moves.push(parsed)
-        const gameState = { ...atomStore.get(gameStateAtom) }
-
-        if (parsed.type === 'undo') {
-          initializeGameState(gameState)
-        } else {
-          applyMove(parsed, gameState, atomStore.get(serverStateAtom))
-          atomStore.set(gameStateAtom, gameState)
-        }
-      }
-    }
-  }
 }
 
 if (typeof window !== 'undefined') {

@@ -1,13 +1,14 @@
+import { getNumber, getSuit, isSub } from './cards'
 import {
+  GameState,
+  Player,
+  Trick,
+  Mission,
+  MissionStatus,
   CardValue,
-  getNumber,
-  getSuit,
-  isSub,
   Suit,
   SuitWithSubs,
-} from './cards'
-import { GameState, Player, Trick } from './game'
-import { Mission, MissionStatus } from './missions'
+} from './types'
 import { findWinner } from './utils'
 
 export const COLOR_SUITS: Suit[] = ['B', 'P', 'Y', 'G']
