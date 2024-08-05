@@ -146,7 +146,7 @@ export function applyMove(
     }
 
     const mission = { ...gameState.missions.splice(missionIdx, 1)[0] }
-    if (move.x) {
+    if (move.x !== undefined) {
       mission.secretX = move.x
       if (mission.xIsPublic || activePlayer.guid === guid) {
         mission.x = move.x

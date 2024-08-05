@@ -106,7 +106,8 @@ export interface Mission {
   comparison?: { suits: [Suit, Suit]; comparator: '>' | '=' }
 }
 
-export type SeatKey = 'seat1' | 'seat2' | 'seat3' | 'seat4' | 'seat5'
+export const seats = ['seat1', 'seat2', 'seat3', 'seat4', 'seat5'] as const
+export type SeatKey = (typeof seats)[number]
 
 export interface GameState {
   players: Player[]

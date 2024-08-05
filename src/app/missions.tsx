@@ -389,7 +389,9 @@ function MissionInner({
     return (
       <>
         <MissionMessage text={'I will win at least 1 card of each color'} />
-        <Hand hand={['B1', 'G1', 'Y1', 'P1']} />
+        <div className="w-14">
+          <Hand hand={['B1', 'G1', 'Y1', 'P1']} />
+        </div>
       </>
     )
   }
@@ -397,9 +399,11 @@ function MissionInner({
     return (
       <>
         <MissionMessage
-          text={'I will win a trick that contains only odd-numbered cards'}
+          text={'I will win a trick that has only odd-numbered cards'}
         />
-        <Hand hand={['B1', 'B3', 'B5', 'B7', 'B9']} showNumber multi />
+        <div className="w-28">
+          <Hand hand={['B1', 'B3', 'B5', 'B7', 'B9']} showNumber multi />
+        </div>
       </>
     )
   }
@@ -407,7 +411,7 @@ function MissionInner({
     return (
       <>
         <MissionMessage
-          text={'I will win a trick that contains only even-numbered cards'}
+          text={'I will win a trick that has only even-numbered cards'}
         />
         <Hand hand={['B2', 'B4', 'B6', 'B8']} showNumber multi />
       </>
@@ -416,7 +420,7 @@ function MissionInner({
   if (mission.finalTrickCapture) {
     return (
       <>
-        <MissionMessage text="In the final trick of the game, I will win" />
+        <MissionMessage text="In the final trick, I will win" />
         <Card card={mission.finalTrickCapture} showNumber />
       </>
     )
@@ -478,7 +482,7 @@ function MissionInner({
   if (mission.equalInTrick) {
     return (
       <>
-        <MissionMessage text="In 1 trick, I will win equal amounts of" />
+        <MissionMessage text="In 1 trick, I will win = amounts of " />
         <Hand hand={mission.equalInTrick.map((c) => `${c}1` as CardValue)} />
       </>
     )
@@ -532,7 +536,7 @@ export function MissionCard({
 
   return (
     <div
-      className={`${isActivePlayer ? 'hover:bg-gray-200' : ''} py-2 ${showCheckbox ? 'pr-4' : 'px-4'} flex`}
+      className={`${isActivePlayer ? 'hover:bg-slate-200' : ''} py-2 ${showCheckbox ? 'pr-4' : 'px-4'} flex rounded-md`}
     >
       <div className="flex items-center gap-2 select-none text-sm">
         {showCheckbox && <div>{status}</div>}

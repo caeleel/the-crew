@@ -1,4 +1,4 @@
-import { CardWithPosition, SeatKey, ServerGameState } from './types'
+import { CardWithPosition, SeatKey, seats, ServerGameState } from './types'
 
 export function findWinner(trick: CardWithPosition[]): CardWithPosition {
   const lead = trick[0]
@@ -13,8 +13,7 @@ export function findWinner(trick: CardWithPosition[]): CardWithPosition {
 
 export function pickSeat(serverState: ServerGameState) {
   const available: SeatKey[] = []
-  for (let i = 1; i <= 5; i++) {
-    const seat = `seat${i}` as SeatKey
+  for (const seat of seats) {
     if (!serverState[seat]) {
       available.push(seat)
     }

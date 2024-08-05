@@ -92,8 +92,12 @@ export function joined(guid: string, serverState: ServerGameState) {
 
 let moves: Move[] = []
 
+export function targetPts(serverState: ServerGameState) {
+  return serverState.meta.target || 12
+}
+
 function allocateMissions(missions: Mission[], players: number) {
-  const { target } = atomStore.get(serverStateAtom).meta
+  const target = targetPts(atomStore.get(serverStateAtom))
 
   let current = 0
   const chosen: Mission[] = []
