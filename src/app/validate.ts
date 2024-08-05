@@ -417,8 +417,21 @@ export class MissionValidator {
       }
     }
     if (mission.firstNTricks) {
-      if (this.playedTricks.length > mission.firstNTricks) {
+      if (this.wonIndices.length > mission.firstNTricks) {
         return true
+      }
+
+      if (
+        this.wonIndices.length !== mission.firstNTricks &&
+        this.playedTricks.length >= mission.firstNTricks
+      ) {
+        return true
+      }
+
+      for (let i = 0; i < this.wonIndices.length; i++) {
+        if (this.wonIndices[i] !== i) {
+          return true
+        }
       }
     }
     if (mission.noneOfTheFirst) {

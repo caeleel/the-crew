@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
-import { Card, Hand, Signal, SignalButton } from './cards'
+import { Card, Hand, Signal } from './cards'
 import { MissionCard } from './missions'
 import { Provider, useAtom, useAtomValue } from 'jotai'
 import {
@@ -16,7 +16,7 @@ import {
 } from './game'
 import { setLocalStorage } from './local-storage'
 import { socket, send, connect, guid } from './ws'
-import { Button } from './button'
+import { Button, EmoteButton, emotes, SignalButton } from './button'
 import { signalType } from './hint'
 import { pickSeat } from './utils'
 import {
@@ -140,8 +140,8 @@ const seatColor = {
 }
 
 const seatAvatar = {
-  seat1: 'bear',
-  seat2: 'snake',
+  seat1: 'bunny',
+  seat2: 'snek',
   seat3: 'cow',
   seat4: 'frog',
   seat5: 'cat',
@@ -150,15 +150,9 @@ const seatAvatar = {
 function PlayerCard({
   player,
   pendingSignal,
-  setPendingSignal,
-  signaling,
-  setSignaling,
 }: {
   player: Player
   pendingSignal?: Hint | null
-  setPendingSignal?: (signal: Hint | null) => void
-  signaling?: boolean
-  setSignaling?: (signaling: boolean) => void
 }) {
   const gameState = useAtomValue(gameStateAtom)
 
@@ -166,45 +160,66 @@ function PlayerCard({
     return null
   }
 
-  const { seat, missions, tricks, name, passesRemaining, hint } = player
+  const { seat, missions, tricks, name, passesRemaining, hint, emote } = player
   const bgColor = `bg-${seatColor[seat]}-50`
   const borderColor = `border-${seatColor[seat]}-300`
   const isMyTurn = gameState.whoseTurn === seat
   const isMe = player.guid === guid
 
-  const canSignal = isMe && !hint && !gameState.missions.length
-
   return (
     <div
-      className={`p-4 flex flex-col gap-2 ${bgColor} ${borderColor} rounded-lg ${isMyTurn ? 'border-2' : ''} h-fit`}
+      className={`p-4 flex flex-col gap-2 ${bgColor} ${borderColor} rounded-lg ${isMyTurn ? 'border-2' : ''} h-fit shrink-0`}
       style={{ width: '336px' }}
     >
-      <div className={'flex gap-2 items-center'}>
-        <div className="font-bold">
-          {seat === gameState.captainSeat && '👑'} {name}
+      <div className="flex gap-2 items-center">
+        <div className="relative">
+          {emote === 'distress' ? (
+            <img
+              className="w-16 h-16"
+              src={`/${seatAvatar[seat]}-distressed.svg`}
+            />
+          ) : (
+            <img src={`/${seatAvatar[seat]}.svg`} />
+          )}
+          {seat === gameState.captainSeat && (
+            <div
+              className="absolute w-8 h-8"
+              style={{ bottom: '52px', right: '32px' }}
+            >
+              <img src={'/crown.png'} className="w-8 h-8" />
+            </div>
+          )}
         </div>
-        {!gameState.missions.length && (
-          <Signal hint={hint || pendingSignal || null} />
-        )}
-        {canSignal && (
-          <SignalButton
-            pendingSignal={pendingSignal || null}
-            signaling={!!signaling}
-            startSignaling={() => setSignaling!(true)}
-            cancelSignal={() => {
-              send({ type: 'move', move: 'h:cancel' })
-              setSignaling!(false)
-              setPendingSignal!(null)
-            }}
-          />
-        )}
-        {!!gameState.missions.length && (
-          <div className="text-slate-400">
-            ({passesRemaining} pass
-            {passesRemaining !== 1 ? 'es' : ''} left)
+        <div className="flex items-center">
+          <div>
+            <img src="/triangle.svg" />
           </div>
-        )}
+          <div className="bg-white py-2 px-4 rounded-md">
+            <div className="flex gap-2 items-center">
+              <div className="font-bold">{name}</div>
+              {!gameState.missions.length && (
+                <Signal hint={hint || pendingSignal || null} />
+              )}
+            </div>
+            {!!gameState.missions.length && (
+              <div className="text-slate-400">
+                {passesRemaining} pass
+                {passesRemaining !== 1 ? 'es' : ''} left
+              </div>
+            )}
+            {emote && (
+              <div className="italic text-slate-400">{emotes[emote]}</div>
+            )}
+          </div>
+        </div>
       </div>
+      {isMe && (
+        <div className="flex gap-2 items-center">
+          <EmoteButton emote="distress" />
+          <EmoteButton emote="winnable" />
+          <EmoteButton emote="trust" />
+        </div>
+      )}
       {!!missions.length && (
         <div>
           {missions.map((mission) => (
@@ -236,6 +251,7 @@ function Seat({ player }: { player: Player }) {
 
   const isMyTurn = gameState.whoseTurn === player.seat
   const isActivePlayer = isMyTurn && gameState.missions.length === 0
+  const canSignal = !player.hint && !gameState.missions.length
 
   if (!player.name || serverState.status !== 'started') {
     return null
@@ -267,14 +283,21 @@ function Seat({ player }: { player: Player }) {
 
   return (
     <div className={`flex gap-8 items-center mx-8`}>
-      <PlayerCard
-        player={player}
-        pendingSignal={pendingSignal}
-        setPendingSignal={setPendingSignal}
-        signaling={signaling}
-        setSignaling={setSignaling}
-      />
-      <div className="flex flex-col gap-3">
+      <PlayerCard player={player} pendingSignal={pendingSignal} />
+      <div className="flex flex-col gap-3 shrink">
+        <div className="flex gap-3 items-center">
+          <SignalButton
+            pendingSignal={pendingSignal || null}
+            canSignal={canSignal}
+            signaling={!!signaling}
+            startSignaling={() => setSignaling!(true)}
+            cancelSignal={() => {
+              send({ type: 'move', move: 'h:cancel' })
+              setSignaling!(false)
+              setPendingSignal!(null)
+            }}
+          />
+        </div>
         <Hand
           highlight={canUseCard}
           hand={player.hand}

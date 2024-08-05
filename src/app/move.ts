@@ -1,4 +1,11 @@
-import { GameState, SeatKey, ServerGameState, CardValue, Hint } from './types'
+import {
+  GameState,
+  SeatKey,
+  ServerGameState,
+  CardValue,
+  Hint,
+  Emote,
+} from './types'
 import { signalType } from './hint'
 import { updateMissionStatuses } from './validate'
 import { findWinner } from './utils'
@@ -25,7 +32,7 @@ interface DraftMove {
 
 interface EmoteMove {
   type: 'emote'
-  emote: 'distress'
+  emote: Emote
   guid: string
 }
 
@@ -63,7 +70,7 @@ export function parseMove(move: string): Move | null {
       return {
         type: 'emote',
         guid,
-        emote: parts[2] as 'distress',
+        emote: parts[2] as Emote,
       }
     case 'd':
       return {
@@ -122,6 +129,14 @@ export function applyMove(
   function rotatePlayer() {
     gameState.whoseTurn = nextSeat
     gameState.turnIdx = seatToIdx(nextSeat)
+  }
+
+  if (move.type === 'emote') {
+    const emotePlayer = gameState.players.find((p) => p.guid === move.guid)
+    if (emotePlayer) {
+      emotePlayer.emote = move.emote
+    }
+    return
   }
 
   if (gameState.missions.length) {

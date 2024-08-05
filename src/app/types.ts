@@ -149,6 +149,8 @@ export interface Trick {
   index: number
 }
 
+export type Emote = 'distress' | 'winnable' | 'trust'
+
 export interface Player {
   name: string
   hand: CardValue[]
@@ -159,4 +161,5 @@ export interface Player {
   idx: number
   seat: SeatKey
   guid: string
+  emote?: Emote
 }

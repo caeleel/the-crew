@@ -29,11 +29,11 @@ const suitToImg = {
 
 export function Signal({ hint }: { hint: Hint | null }) {
   if (!hint) {
-    return <div>🟢</div>
+    return <div className="w-4 h-4 border-green-400 border rounded-full" />
   }
 
   if (hint.played) {
-    return <div>🔴</div>
+    return <div className="w-4 h-4 border-red-400 border rounded-full" />
   }
 
   let symbol = '❄️'
@@ -48,42 +48,6 @@ export function Signal({ hint }: { hint: Hint | null }) {
       <Card card={hint.card} showNumber />
       <div>{symbol}</div>
     </div>
-  )
-}
-
-export function SignalButton({
-  pendingSignal,
-  signaling,
-  startSignaling,
-  cancelSignal,
-}: {
-  pendingSignal: Hint | null
-  signaling: boolean
-  startSignaling: () => void
-  cancelSignal: () => void
-}) {
-  const status = pendingSignal
-    ? 'Pending signal...'
-    : signaling
-      ? 'Signal a card...'
-      : ''
-
-  return (
-    <>
-      {status && <div className="text-sm text-slate-400">{status}</div>}
-      <Button
-        small
-        onClick={() => {
-          if (signaling || pendingSignal) {
-            cancelSignal()
-          } else {
-            startSignaling()
-          }
-        }}
-      >
-        {signaling || pendingSignal ? 'Cancel' : 'Signal'}
-      </Button>
-    </>
   )
 }
 
@@ -125,10 +89,9 @@ export function Card({
     >
       {!multi && (
         <div
-          className={`${showBack ? 'bg-sky-700' : big ? '' : suitToBg[suit]} ${cardSize} flex items-center justify-center bg-center`}
+          className={`${showBack ? 'bg-sky-700' : big ? '' : suitToBg[suit]} ${cardSize} flex items-center justify-center bg-center bg-contain`}
           style={{
             backgroundImage: big ? `url(/${suitToImg[suit]})` : undefined,
-            backgroundSize: '72px 100px',
           }}
         />
       )}
