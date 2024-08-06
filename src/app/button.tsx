@@ -85,14 +85,22 @@ export const emotes = {
   trust: 'Trust trust',
 }
 
-export function EmoteButton({ emote }: { emote: Emote }) {
+export function EmoteButton({
+  emote,
+  current,
+}: {
+  emote: Emote
+  current?: Emote
+}) {
+  if (emote === 'none') return null
+
   return (
     <Button
       small
       onClick={() => {
         send({
           type: 'move',
-          move: `e:${emote}`,
+          move: `e:${emote === current ? 'none' : emote}`,
         })
       }}
     >

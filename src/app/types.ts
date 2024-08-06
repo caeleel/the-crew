@@ -149,7 +149,7 @@ export interface Trick {
   index: number
 }
 
-export type Emote = 'distress' | 'winnable' | 'trust'
+export type Emote = 'distress' | 'winnable' | 'trust' | 'none'
 
 export interface Player {
   name: string

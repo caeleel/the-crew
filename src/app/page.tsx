@@ -204,7 +204,7 @@ function PlayerCard({
                 {passesRemaining !== 1 ? 'es' : ''} left
               </div>
             )}
-            {emote && (
+            {emote && emote !== 'none' && (
               <div className="italic text-slate-400">{emotes[emote]}</div>
             )}
           </div>
@@ -212,9 +212,9 @@ function PlayerCard({
       </div>
       {isMe && (
         <div className="flex gap-2 items-center">
-          <EmoteButton emote="distress" />
-          <EmoteButton emote="winnable" />
-          <EmoteButton emote="trust" />
+          <EmoteButton emote="distress" current={emote} />
+          <EmoteButton emote="winnable" current={emote} />
+          <EmoteButton emote="trust" current={emote} />
         </div>
       )}
       {!!missions.length && (
