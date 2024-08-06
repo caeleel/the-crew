@@ -73,7 +73,7 @@ export function SignalButton({
           ? signaling || pendingSignal
             ? 'Cancel'
             : 'Signal'
-          : 'Signal used'}
+          : 'Signal unavailable'}
       </Button>
     </>
   )

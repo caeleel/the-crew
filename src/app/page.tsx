@@ -251,7 +251,8 @@ function Seat({ player }: { player: Player }) {
 
   const isMyTurn = gameState.whoseTurn === player.seat
   const isActivePlayer = isMyTurn && gameState.missions.length === 0
-  const canSignal = !player.hint && !gameState.missions.length
+  const canSignal =
+    !player.hint && !gameState.missions.length && player.guid === guid
 
   if (!player.name || serverState.status !== 'started') {
     return null
