@@ -174,10 +174,7 @@ function PlayerCard({
       <div className="flex gap-2 items-center">
         <div className="relative">
           {emote === 'distress' ? (
-            <img
-              className="w-16 h-16"
-              src={`/${seatAvatar[seat]}-distressed.svg`}
-            />
+            <img src={`/${seatAvatar[seat]}-distressed.svg`} />
           ) : (
             <img src={`/${seatAvatar[seat]}.svg`} />
           )}
