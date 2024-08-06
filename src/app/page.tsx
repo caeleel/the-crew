@@ -463,12 +463,16 @@ function ActiveTrick({
 
   return (
     <div
-      className={`flex flex-col justify-between items-center bg-slate-100 rounded-lg ${faded ? 'animate-fade' : ''}`}
+      className={`p-4 flex flex-col justify-between items-center bg-slate-100 rounded-lg ${faded ? 'animate-fade' : ''}`}
       style={{ height: '320px', width: '540px' }}
     >
       <div className="flex justify-around w-full">
         {cardMap[1].map((card, i) =>
-          card ? <Card key={i} card={card} big showNumber /> : <div key={i} />,
+          card ? (
+            <Card key={i} card={card} big showNumber />
+          ) : (
+            <div key={i} className="w-12 h-16 m-0.5" />
+          ),
         )}
       </div>
       {cardMap.length === 3 && (
@@ -477,12 +481,16 @@ function ActiveTrick({
             card ? (
               <Card key={i} card={card} big showNumber />
             ) : (
-              <div key={i} />
+              <div key={i} className="w-12 h-16 m-0.5" />
             ),
           )}
         </div>
       )}
-      {cardMap[0][0] ? <Card card={cardMap[0][0]} showNumber big /> : <div />}
+      {cardMap[0][0] ? (
+        <Card card={cardMap[0][0]} showNumber big />
+      ) : (
+        <div className="w-12 h-16 m-0.5" />
+      )}
     </div>
   )
 }
