@@ -405,7 +405,7 @@ function GameHeader() {
   const gameState = useAtomValue(gameStateAtom)
 
   return (
-    <div className="flex justify-between rounded-sm p-4 items-center w-full">
+    <div className="flex absolute justify-between rounded-sm p-4 items-center w-full">
       <div className="px-3">Target: {targetPts(serverState)}</div>
       <div className="flex gap-2">
         {serverState.status === 'started' && (
@@ -589,25 +589,27 @@ function PageInner() {
   return (
     <>
       <GameHeader />
-      <div className="flex flex-col gap-8 items-center justify-center w-screen py-8">
-        <div className="flex gap-8 min-h-32">
-          {seating[1].map((n) => (
-            <PlayerCard key={n} player={players[n]} />
-          ))}
+      <div className="flex w-screen h-screen absolute items-center justify-center">
+        <div className="flex flex-col gap-8 items-center justify-center">
+          <div className="flex gap-8 min-h-32">
+            {seating[1].map((n) => (
+              <PlayerCard key={n} player={players[n]} />
+            ))}
+          </div>
+          <div className="flex gap-8 items-center min-h-32">
+            {seating.length === 3 && (
+              <PlayerCard player={players[seating[2][0]]} />
+            )}
+            <Table />
+            {seating.length === 3 && (
+              <PlayerCard player={players[seating[2][1]]} />
+            )}
+          </div>
+          <div className="min-h-32 flex items-end">
+            <Seat player={players[seating[0][0]]} />
+          </div>
+          <div className="bg-emerald-50 border-emerald-300 bg-sky-50 border-sky-300 bg-orange-50 border-orange-300 bg-pink-50 border-pink-300 bg-violet-50 border-violet-300" />
         </div>
-        <div className="flex gap-8 items-center min-h-32">
-          {seating.length === 3 && (
-            <PlayerCard player={players[seating[2][0]]} />
-          )}
-          <Table />
-          {seating.length === 3 && (
-            <PlayerCard player={players[seating[2][1]]} />
-          )}
-        </div>
-        <div className="min-h-32 flex items-end">
-          <Seat player={players[seating[0][0]]} />
-        </div>
-        <div className="bg-emerald-50 border-emerald-300 bg-sky-50 border-sky-300 bg-orange-50 border-orange-300 bg-pink-50 border-pink-300 bg-violet-50 border-violet-300" />
       </div>
     </>
   )

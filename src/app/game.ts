@@ -208,6 +208,8 @@ export function initializeGameState(gameState: GameState) {
   atomStore.set(gameStateAtom, gameState)
 }
 
+let needsInitialize = false
+
 export function handleMsg(msg: any) {
   console.log(`Received msg type: ${msg.type}`)
   switch (msg.type) {
@@ -232,8 +234,9 @@ export function handleMsg(msg: any) {
         rawState.startingSeats === '' ? [] : rawState.startingSeats.split(',')
 
       const serverState = atomStore.get(serverStateAtom)
-      const needsInitialize =
-        status === 'started' && serverState.status === 'waiting'
+      if (status === 'started' && serverState.status === 'waiting') {
+        needsInitialize = true
+      }
       const newServerState: ServerGameState = {
         seed1: Number(seed1),
         seed2: Number(seed2),
@@ -260,11 +263,15 @@ export function handleMsg(msg: any) {
 
       if (needsInitialize) {
         initializeGameState(gameState)
+        needsInitialize = false
       }
       break
     }
     case 'moves': {
       moves = msg.moves.map((msg: string) => parseMove(msg))
+      if (moves.length) {
+        needsInitialize = true
+      }
       break
     }
     case 'move': {

@@ -104,7 +104,7 @@ export function EmoteButton({
         })
       }}
     >
-      <span className="italic text-slate-400">{emotes[emote]}</span>
+      <span className="italic">{emotes[emote]}</span>
     </Button>
   )
 }
