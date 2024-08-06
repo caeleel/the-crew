@@ -120,7 +120,7 @@ export function Card({
           className={`absolute ${cardSize} flex items-center justify-center top-0 left-0`}
         >
           <div
-            className={`${numberSize} drop-shadow`}
+            className={`${numberSize} drop-shadow font-sans relative bottom-0.5`}
             style={{
               WebkitTextStroke: big ? `1px ${suitToOutline[suit]}` : '',
             }}

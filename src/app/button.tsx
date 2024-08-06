@@ -24,7 +24,7 @@ export function Button({
 
   return (
     <button
-      className={`bg-white ${disabled ? '' : 'hover:bg-slate-200'} ${border ? 'border border-slate-500' : ''} disabled:opacity-30 disabled:cursor-default disabled:text-slate-400 rounded-md ${sizing} cursor-pointer ${full ? 'w-full' : ''}`}
+      className={`bg-white ${disabled ? '' : 'hover:bg-slate-200'} ${border ? 'border border-slate-500' : ''} disabled:opacity-30 disabled:cursor-default disabled:text-slate-400 rounded-md ${sizing} cursor-pointer select-none ${full ? 'w-full' : ''}`}
       disabled={disabled}
       onClick={onClick}
     >

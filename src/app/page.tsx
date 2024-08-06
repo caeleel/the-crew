@@ -463,7 +463,7 @@ function ActiveTrick({
 
   return (
     <div
-      className={`flex flex-col justify-between items-center ${faded ? 'animate-fade' : ''}`}
+      className={`flex flex-col justify-between items-center bg-slate-100 rounded-lg ${faded ? 'animate-fade' : ''}`}
       style={{ height: '320px', width: '540px' }}
     >
       <div className="flex justify-around w-full">
