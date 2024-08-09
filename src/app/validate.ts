@@ -149,6 +149,9 @@ export class MissionValidator {
         const numWon = this.numCardsWonInSuit(suit)
         if (exact) {
           const numPlayed = this.numCardsPlayedInSuit(suit)
+          if (suit === 's') {
+            return numWon === count && numPlayed === 4
+          }
           return numWon === count && numPlayed === 9
         } else {
           return numWon >= count

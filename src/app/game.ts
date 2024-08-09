@@ -138,6 +138,7 @@ export function initializeGameState(gameState: GameState) {
   gameState.missions = allocateMissions(shuffledMissions, activeSeats.length)
   gameState.players = players
   gameState.numPlayers = activeSeats.length
+  gameState.undoUsed = false
 
   let cardIdx = 0
   let captainFound = false
@@ -193,11 +194,11 @@ export function initializeGameState(gameState: GameState) {
       playCounter = 0
     }
 
-    playsUntilUndo[i] = playCounter
-
     if (move.type === 'play') {
       playCounter++
     }
+
+    playsUntilUndo[i] = playCounter
   }
 
   for (let i = 0; i < moves.length; i++) {
