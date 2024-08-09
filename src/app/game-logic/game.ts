@@ -1,8 +1,8 @@
 import { atom, createStore } from 'jotai'
-import { missions } from './missions'
+import { missions } from '../components/missions'
 import { applyMove, Move, parseMove, seatToIdx } from './move'
-import { setSeeds, shuffle } from './rand'
-import { getLocalStorage } from './local-storage'
+import { setSeeds, shuffle } from '../lib/rand'
+import { getLocalStorage } from '../lib/local-storage'
 import {
   cards,
   GameState,
@@ -10,7 +10,7 @@ import {
   Player,
   SeatKey,
   ServerGameState,
-} from './types'
+} from '../types'
 
 export const emptyPlayer: Player = {
   name: '',

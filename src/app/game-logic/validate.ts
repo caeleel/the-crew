@@ -1,4 +1,4 @@
-import { getNumber, getSuit, isSub } from './cards'
+import { getNumber, getSuit, isSub } from '../components/cards'
 import {
   GameState,
   Player,
@@ -8,8 +8,8 @@ import {
   CardValue,
   Suit,
   SuitWithSubs,
-} from './types'
-import { findWinner } from './utils'
+} from '../types'
+import { findWinner } from '../lib/utils'
 
 export const COLOR_SUITS: Suit[] = ['B', 'P', 'Y', 'G']
 

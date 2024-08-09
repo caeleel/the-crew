@@ -1,5 +1,5 @@
 import { Button } from './button'
-import { CardValue, Hint, Suit, SuitWithSubs } from './types'
+import { CardValue, Hint, Suit, SuitWithSubs } from '../types'
 
 export function getSuit(cardValue: CardValue): SuitWithSubs {
   return cardValue[0] as Suit

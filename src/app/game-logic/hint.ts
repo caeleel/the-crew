@@ -1,4 +1,4 @@
-import { CardValue } from './types'
+import { CardValue } from '../types'
 
 export function signalType(card: CardValue, hand: CardValue[]) {
   const suit = card[0]

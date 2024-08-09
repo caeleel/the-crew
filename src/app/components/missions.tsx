@@ -1,5 +1,5 @@
 import { Card, CardNumber, Hand } from './cards'
-import { CardValue, Mission } from './types'
+import { CardValue, Mission } from '../types'
 
 export const missions: Mission[] = [
   { id: '93', points: [1, 1, 1], willWin: ['G6'] },

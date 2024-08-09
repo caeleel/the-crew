@@ -1,4 +1,4 @@
-import { CardWithPosition, SeatKey, seats, ServerGameState } from './types'
+import { CardWithPosition, SeatKey, seats, ServerGameState } from '../types'
 
 export function findWinner(trick: CardWithPosition[]): CardWithPosition {
   const lead = trick[0]

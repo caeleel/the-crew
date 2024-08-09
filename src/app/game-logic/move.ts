@@ -5,11 +5,11 @@ import {
   CardValue,
   Hint,
   Emote,
-} from './types'
+} from '../types'
 import { signalType } from './hint'
 import { updateMissionStatuses } from './validate'
-import { findWinner } from './utils'
-import { guid } from './ws'
+import { findWinner } from '../lib/utils'
+import { guid } from '../lib/ws'
 
 interface PlayMove {
   type: 'play'

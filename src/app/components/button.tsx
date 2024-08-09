@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
-import { Emote, Hint } from './types'
-import { send } from './ws'
+import { Emote, Hint } from '../types'
+import { send } from '../lib/ws'
 
 export function Button({
   children,
