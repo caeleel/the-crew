@@ -120,6 +120,7 @@ export interface GameState {
   whoseTurn: SeatKey
   turnIdx: number
   undoUsed: boolean
+  succeeded: boolean
 }
 
 export interface ServerGameState {

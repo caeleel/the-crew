@@ -14,14 +14,21 @@ import { findWinner } from './utils'
 export const COLOR_SUITS: Suit[] = ['B', 'P', 'Y', 'G']
 
 export function updateMissionStatuses(gameState: GameState) {
+  let succeeded = true
+
   gameState.players.forEach((player) => {
     const missionValidator = new MissionValidator(gameState, player)
     player.missions.forEach((mission) => {
       if (!mission.status) {
         mission.status = missionValidator.getStatus(mission)
       }
+      if (mission.status !== 'pass') {
+        succeeded = false
+      }
     })
   })
+
+  gameState.succeeded = succeeded
 }
 
 export class MissionValidator {

@@ -68,6 +68,7 @@ export const gameStateAtom = atom<GameState>({
   turnIdx: 0,
   totalTricks: 0,
   undoUsed: false,
+  succeeded: false,
 })
 
 let name = getLocalStorage('name') || ''
@@ -139,6 +140,7 @@ export function initializeGameState(gameState: GameState) {
   gameState.players = players
   gameState.numPlayers = activeSeats.length
   gameState.undoUsed = false
+  gameState.succeeded = false
 
   let cardIdx = 0
   let captainFound = false

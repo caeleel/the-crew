@@ -27,6 +27,9 @@ import {
   SeatKey,
   ServerGameState,
 } from './types'
+import { UnifrakturCook } from 'next/font/google'
+
+const unifraktur = UnifrakturCook({ weight: '700', subsets: ['latin'] })
 
 function Lobby() {
   const serverState = useAtomValue(serverStateAtom)
@@ -457,6 +460,7 @@ function ActiveTrick({
   faded?: boolean
 }) {
   const seating = seatingChart(useAtomValue(serverStateAtom))
+  const gameState = useAtomValue(gameStateAtom)
   const cardArray: (CardValue | null)[] = [null, null, null, null, null]
   for (const card of trick) {
     const idx = Number(card.position[4]) - 1
@@ -466,21 +470,14 @@ function ActiveTrick({
 
   return (
     <div
-      className={`p-4 flex flex-col justify-between items-center bg-slate-100 rounded-lg ${faded ? 'animate-fade' : ''}`}
+      className="relative bg-slate-100 rounded-lg"
       style={{ height: '320px', width: '540px' }}
     >
-      <div className="flex justify-around w-full">
-        {cardMap[1].map((card, i) =>
-          card ? (
-            <Card key={i} card={card} big showNumber />
-          ) : (
-            <div key={i} className="w-12 h-16 m-0.5" />
-          ),
-        )}
-      </div>
-      {cardMap.length === 3 && (
-        <div className="flex justify-between w-full">
-          {cardMap[2].map((card, i) =>
+      <div
+        className={`absolute p-4 w-full h-full flex flex-col justify-between items-center ${faded ? 'animate-fade' : ''}`}
+      >
+        <div className="flex justify-around w-full">
+          {cardMap[1].map((card, i) =>
             card ? (
               <Card key={i} card={card} big showNumber />
             ) : (
@@ -488,11 +485,31 @@ function ActiveTrick({
             ),
           )}
         </div>
-      )}
-      {cardMap[0][0] ? (
-        <Card card={cardMap[0][0]} showNumber big />
-      ) : (
-        <div className="w-12 h-16 m-0.5" />
+        {cardMap.length === 3 && (
+          <div className="flex justify-between w-full">
+            {cardMap[2].map((card, i) =>
+              card ? (
+                <Card key={i} card={card} big showNumber />
+              ) : (
+                <div key={i} className="w-12 h-16 m-0.5" />
+              ),
+            )}
+          </div>
+        )}
+        {cardMap[0][0] ? (
+          <Card card={cardMap[0][0]} showNumber big />
+        ) : (
+          <div className="w-12 h-16 m-0.5" />
+        )}
+      </div>
+      {gameState.totalTricks === gameState.activeTrick.index && (
+        <div
+          className={`h-full w-full absolute flex items-center justify-center ${unifraktur.className} text-4xl`}
+        >
+          <div>
+            {gameState.succeeded ? 'Mission complete!' : 'Mission failed'}
+          </div>
+        </div>
       )}
     </div>
   )
