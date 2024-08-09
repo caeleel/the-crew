@@ -502,7 +502,7 @@ function ActiveTrick({
           <div className="w-12 h-16 m-0.5" />
         )}
       </div>
-      {gameState.totalTricks === gameState.activeTrick.index && (
+      {gameState.totalTricks <= gameState.activeTrick.index && (
         <div
           className={`h-full w-full absolute flex items-center justify-center ${unifraktur.className} text-4xl`}
         >
