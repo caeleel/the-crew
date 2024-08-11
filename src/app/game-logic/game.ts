@@ -92,6 +92,7 @@ export function joined(guid: string, serverState: ServerGameState) {
 }
 
 let moves: Move[] = []
+export let rawMoves: string[] = []
 
 export function targetPts(serverState: ServerGameState) {
   return serverState.meta.target || 12
@@ -271,6 +272,7 @@ export function handleMsg(msg: any) {
       break
     }
     case 'moves': {
+      rawMoves = msg.moves
       moves = msg.moves.map((msg: string) => parseMove(msg))
       if (moves.length) {
         needsInitialize = true
@@ -278,9 +280,11 @@ export function handleMsg(msg: any) {
       break
     }
     case 'move': {
-      const parsed = parseMove(`${msg.guid}:${msg.move}`)
+      const move = `${msg.guid}:${msg.move}`
+      const parsed = parseMove(move)
       if (parsed) {
         moves.push(parsed)
+        rawMoves.push(move)
         const gameState = { ...atomStore.get(gameStateAtom) }
 
         if (parsed.type === 'undo') {

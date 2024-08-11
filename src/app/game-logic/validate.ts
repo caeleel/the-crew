@@ -225,6 +225,9 @@ export class MissionValidator {
     if (mission.finalTrickCapture) {
       // I win win the last trick
       const finalTrick = this.wonTricks[this.wonTricks.length - 1]
+      if (!finalTrick) {
+        return false
+      }
       return (
         finalTrick.index + 1 === this.gameState.totalTricks &&
         this.trickContainsCard(finalTrick, mission.finalTrickCapture)

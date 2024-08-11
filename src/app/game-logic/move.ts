@@ -10,6 +10,8 @@ import { signalType } from './hint'
 import { updateMissionStatuses } from './validate'
 import { findWinner } from '../lib/utils'
 import { guid } from '../lib/ws'
+import { upsertGame } from '../lib/api'
+import { rawMoves } from './game'
 
 interface PlayMove {
   type: 'play'
@@ -233,6 +235,12 @@ export function applyMove(
       gameState.whoseTurn = winner.seat
       flushMoveQueue(gameState, serverState)
       updateMissionStatuses(gameState)
+
+      if (gameState.activeTrick.index === gameState.totalTricks) {
+        if (winner.guid === guid) {
+          upsertGame(serverState, gameState, rawMoves)
+        }
+      }
     } else {
       rotatePlayer()
     }
