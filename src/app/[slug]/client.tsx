@@ -516,12 +516,11 @@ function ActiveTrick({
         )}
       </div>
       {gameState.totalTricks <= gameState.activeTrick.index && (
-        <div
-          className={`h-full w-full absolute flex items-center justify-center ${unifraktur.className} text-4xl`}
-        >
-          <div>
+        <div className="h-full w-full absolute flex flex-col items-center justify-center">
+          <div className={`${unifraktur.className} text-4xl`}>
             {gameState.succeeded ? 'Mission complete!' : 'Mission failed'}
           </div>
+          <div>Your mission has been recorded in the logs</div>
         </div>
       )}
     </div>
