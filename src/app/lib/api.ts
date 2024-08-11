@@ -8,15 +8,12 @@ interface Player {
 
 export async function upsertGame(
   serverState: ServerGameState,
-  gameState: Pick<
-    GameState,
-    'undoUsed' | 'activeTrick' | 'totalTricks' | 'succeeded'
-  >,
+  gameState: Pick<GameState, 'undoUsed' | 'succeeded'> & { completed: boolean },
   moves: string[],
 ) {
   const players: { [guid: string]: Player } = {}
   const undo_used = gameState.undoUsed
-  const completed = gameState.totalTricks <= gameState.activeTrick.index
+  const completed = gameState.completed
   const success = gameState.succeeded
   const { seed1, seed2, seed3, seed4, meta } = serverState
   if (meta.target === undefined) {

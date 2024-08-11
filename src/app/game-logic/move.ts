@@ -238,7 +238,7 @@ export function applyMove(
 
       if (gameState.activeTrick.index === gameState.totalTricks) {
         if (winner.guid === guid) {
-          upsertGame(serverState, gameState, rawMoves)
+          upsertGame(serverState, { ...gameState, completed: true }, rawMoves)
         }
       }
     } else {

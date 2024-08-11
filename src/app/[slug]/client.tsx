@@ -12,6 +12,8 @@ import {
   gameStateAtom,
   nameAtom,
   targetPts,
+  gameComplete,
+  rawMoves,
 } from '../game-logic/game'
 import { setLocalStorage } from '../lib/local-storage'
 import { socket, send, connect, guid } from '../lib/ws'
@@ -78,8 +80,7 @@ function Lobby() {
                 {
                   undoUsed: false,
                   succeeded: false,
-                  activeTrick: gameState.activeTrick,
-                  totalTricks: 1000,
+                  completed: false,
                 },
                 [],
               )
@@ -451,10 +452,23 @@ function GameHeader() {
         )}
         <Button
           onClick={() => {
-            if (confirm('Are you sure you want to end the game?')) {
+            const completed = gameComplete(gameState)
+            let message = 'Are you sure you want to end the game?'
+            if (!completed) {
+              message += ' Your mission will be marked as a loss.'
+            }
+            if (confirm(message)) {
               send({
                 type: 'reset',
               })
+
+              if (!completed) {
+                upsertGame(
+                  serverState,
+                  { ...gameState, completed: false },
+                  rawMoves,
+                )
+              }
             }
           }}
         >
@@ -515,7 +529,7 @@ function ActiveTrick({
           <div className="w-12 h-16 m-0.5" />
         )}
       </div>
-      {gameState.totalTricks <= gameState.activeTrick.index && (
+      {gameComplete(gameState) && (
         <div className="h-full w-full absolute flex flex-col items-center justify-center">
           <div className={`${unifraktur.className} text-4xl`}>
             {gameState.succeeded ? 'Mission complete!' : 'Mission failed'}

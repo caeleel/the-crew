@@ -98,6 +98,10 @@ export function targetPts(serverState: ServerGameState) {
   return serverState.meta.target || 12
 }
 
+export function gameComplete(gameState: GameState) {
+  return gameState.totalTricks <= gameState.activeTrick.index
+}
+
 function allocateMissions(missions: Mission[], players: number) {
   const target = targetPts(atomStore.get(serverStateAtom))
 
