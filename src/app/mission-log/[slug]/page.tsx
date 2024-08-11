@@ -14,7 +14,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
     <div>
       <div>Hello {JSON.stringify(rows)}</div>
       {rows.map((row) => (
-        <div>{row.seed1}</div>
+        <div key={row.seed1}>{row.seed1}</div>
       ))}
     </div>
   )
