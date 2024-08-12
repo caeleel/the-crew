@@ -22,11 +22,24 @@ function Mission({ mission }: { mission: MissionLog }) {
   )
 }
 
+function EmptyMissions() {
+  return (
+    <div className="flex flex-col items-center my-8">
+      <div className="text-2xl my-2">Mission logs</div>
+      <div>No missions recorded</div>
+    </div>
+  )
+}
+
 export default async function Page({ params }: { params: { slug: string } }) {
   unstable_noStore()
   const guid = params.slug
   const games =
     await sql`SELECT mission_id, player_id, seat, name FROM players WHERE player_id = ${guid}`
+
+  if (games.rowCount === 0) {
+    return <EmptyMissions />
+  }
 
   const missionQuery = `SELECT id, meta, undo_used, completed, success, updated_at FROM mission_logs WHERE id IN (${games.rows.map((_, i) => `$${i + 1}`).join(', ')}) ORDER BY updated_at DESC`
   const { rows } = await sql.query(
@@ -35,12 +48,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
   )
 
   if (rows.length === 0) {
-    return (
-      <div className="flex flex-col items-center my-8">
-        <div className="text-2xl my-2">Mission logs</div>
-        <div>No missions recorded</div>
-      </div>
-    )
+    return <EmptyMissions />
   }
 
   const query = `SELECT * FROM players WHERE mission_id IN (${rows.map((_, i) => `$${i + 1}`).join(', ')})`
