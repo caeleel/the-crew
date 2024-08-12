@@ -164,3 +164,23 @@ export interface Player {
   guid: string
   emote?: Emote
 }
+
+export interface MissionLog {
+  seed1: number
+  seed2: number
+  seed3: number
+  seed4: number
+  success: boolean
+  completed: boolean
+  undo_used: boolean
+  meta: { target: number }
+  created_at: number
+  updated_at: number
+  moves: string[]
+  players: {
+    [guid: string]: {
+      seat: string
+      name: string
+    }
+  }
+}

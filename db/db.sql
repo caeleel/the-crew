@@ -22,5 +22,5 @@ CREATE TABLE players (
   name text
 );
 
-CREATE UNIQUE INDEX player_index ON players (player_id);
+CREATE UNIQUE INDEX player_index ON players (player_id, mission_id);
 CREATE INDEX player_mission ON players (mission_id);

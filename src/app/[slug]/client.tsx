@@ -450,6 +450,12 @@ function GameHeader() {
             {gameState.undoUsed ? 'Undo used' : 'Undo trick'}
           </Button>
         )}
+        <a
+          className="px-4 py-2 hover:bg-slate-200 rounded-md"
+          href={`/mission-log/${guid}`}
+        >
+          Mission Logs
+        </a>
         <Button
           onClick={() => {
             const completed = gameComplete(gameState)
