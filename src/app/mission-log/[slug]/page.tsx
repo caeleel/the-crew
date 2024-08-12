@@ -3,7 +3,7 @@ import { sql } from '@vercel/postgres'
 import { unstable_noStore } from 'next/cache'
 import { UnifrakturCook } from 'next/font/google'
 
-export const unifraktur = UnifrakturCook({ weight: '700', subsets: ['latin'] })
+const unifraktur = UnifrakturCook({ weight: '700', subsets: ['latin'] })
 
 function Mission({ mission }: { mission: MissionLog }) {
   return (
