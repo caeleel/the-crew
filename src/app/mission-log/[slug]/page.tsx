@@ -39,7 +39,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
       <div className="flex flex-col items-center my-8">
         <div className="text-2xl my-2">Mission logs</div>
         <div>No missions recorded</div>
-        <div>{JSON.stringify(games.rows)}</div>
       </div>
     )
   }
